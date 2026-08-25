@@ -28,8 +28,6 @@ Examples:
 from __future__ import annotations
 
 import argparse
-import csv
-import hashlib
 import json
 import logging
 import re
@@ -40,7 +38,7 @@ import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Final
+from typing import Any, Final
 
 HARNESS: Final[Path] = Path(__file__).resolve().parent.parent
 SKILLS_DIR: Final[Path] = HARNESS / ".claude" / "skills"

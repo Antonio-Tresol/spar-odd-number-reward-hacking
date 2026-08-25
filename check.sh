@@ -15,7 +15,15 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 # Formatting and import order are not up for debate: ruff format + isort (rule I).
-uvx ruff format --check . && uvx ruff check --select I .
+#
+# These are two statements, not `A && B`, on purpose. `set -e` does NOT abort on
+# a failing command that sits to the LEFT of `&&` — only the last command in the
+# list counts. So the old one-liner swallowed every formatting failure AND
+# skipped the import-order check entirely, while check.sh went on to exit 0.
+# That is how 27 unformatted files went unnoticed. Verified: `set -euo pipefail;
+# false && echo B; echo C` prints C and exits 0.
+uvx ruff format --check .
+uvx ruff check .
 
 PYTHONPATH=. uvx lanorme check "${1:-.}"
 

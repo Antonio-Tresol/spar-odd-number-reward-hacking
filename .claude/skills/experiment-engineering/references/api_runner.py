@@ -32,7 +32,7 @@ import time
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Final
+from typing import Final
 
 LOGGER: Final[logging.Logger] = logging.getLogger("api_runner")
 

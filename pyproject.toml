@@ -3,7 +3,10 @@ name = "odd-number"
 version = "0.1.0"
 description = "Model Forensics take-home: why do models output an odd number when the in-context grader rewards odd?"
 requires-python = ">=3.13"
-dependencies = ["openrouter>=1.1.82"]
+dependencies = [
+    "openrouter>=1.1.82",
+    "pydantic-settings>=2.15.0",
+]
 
 [project.scripts]
 odd-number = "odd_number.cli:main"
@@ -19,3 +22,30 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/odd_number"]
+
+# Ruff had no configuration at all until 2026-08-25, so it silently used its
+# default 88-column line length while this codebase is written to 100. That put
+# 27 files permanently "unformatted" — a gate nobody could pass, which is why
+# nobody noticed check.sh was skipping it (see the comment there). At 100 the
+# same tree has 3.
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# `I` is import order. `F` is pyflakes — unused imports, unused locals, and
+# undefined names. F was not enabled until 2026-08-25, and both of the bugs it
+# found on first run were real: a leftover `import json`, and `read_rollouts`
+# used in cli.py without being imported. The second is a crash on the CLI's
+# front door that the full test suite passed straight over.
+#
+# Trailing commas are already enforced by `ruff format`, which inserts one
+# whenever it splits a collection across lines; COM812 is documented as
+# conflicting with the formatter, so adding it would fight the tool that
+# already does the job.
+select = ["F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# jaxtyping puts axis names inside string annotations (`Float[Tensor, "b s d"]`).
+# Ruff parses those as expressions and reports the axis names as undefined, which
+# is a false positive (F821/F722) on the exact idiom the tensors plugin enforces.
+".claude/skills/experiment-engineering/references/*.py" = ["F821", "F722"]

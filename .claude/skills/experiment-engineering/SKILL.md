@@ -167,9 +167,10 @@ wrong number, which you then debug for an afternoon.
 from jaxtyping import Bool, Float
 from torch import Tensor
 
+
 def project(
     activations: Float[Tensor, "batch seq d_model"],
-    direction: Float[Tensor, "d_model"],          # a vector is still annotated
+    direction: Float[Tensor, "d_model"],  # a vector is still annotated
 ) -> Float[Tensor, "batch seq"]:
     return einsum(activations, direction, "b s d, d -> b s")
 ```
