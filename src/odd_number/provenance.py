@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from odd_number.completions import DIRECT_ROUTING
-from odd_number.rollouts import RolloutRecord, read_rollouts
+from odd_number.rollouts import RolloutRecord, deduplicate_rollouts, read_rollouts
 
 _NON_ALNUM = re.compile(r"[^a-z0-9]")
 
@@ -91,16 +91,14 @@ def audit_pins(results: Path) -> AuditReport:
     """Check every successful rollout in a results file against its pins."""
     problems: list[str] = []
     checked = verified = unverified = 0
-    for record in read_rollouts(results):
-        if record.get("error") is not None:
-            continue
+    for record in deduplicate_rollouts(read_rollouts(results)):
         checked += 1
         if record.get("served_provider") is None:
             unverified += 1
             continue
         verified += 1
         for problem in find_pin_mismatches(record):
-            problems.append(f"{record['variant']}[{record['index']}] {problem}")
+            problems.append(f"{record['treatment']}[{record['index']}] {problem}")
     return AuditReport(
         checked=checked,
         verified=verified,

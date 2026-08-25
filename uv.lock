@@ -111,6 +111,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "openrouter" },
+    { name = "pydantic" },
     { name = "pydantic-settings" },
 ]
 
@@ -122,6 +123,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "openrouter", specifier = ">=1.1.82" },
+    { name = "pydantic", specifier = ">=2.12" },
     { name = "pydantic-settings", specifier = ">=2.15.0" },
 ]
 

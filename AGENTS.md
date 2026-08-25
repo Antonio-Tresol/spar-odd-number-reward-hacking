@@ -36,8 +36,8 @@ Two kinds of Python live here, and they follow different rules.
   front door:
 
   ```
-  uv run odd-number prompts                    # print every prompt variant
-  uv run odd-number models                     # the pinned model slate
+  uv run odd-number prompts                    # print every prompt treatment
+  uv run odd-number models                     # every pinned model
   uv run odd-number endpoints qwen/qwen3.6-27b # provider tags available to pin
   uv run odd-number collect --mock --n 5       # no API key needed
   uv run odd-number collect --model qwen/qwen3.6-27b --n 40
@@ -58,7 +58,7 @@ Two kinds of Python live here, and they follow different rules.
      — never `os.environ.get` at a point of use.
   3. **Names say what a thing is or does.** A module is named for the principal
      type it defines, pluralised (`rollouts.py` → `Rollout`, `completions.py` →
-     `Completion`, `grades.py` → `Grade`, `candidates.py` → `Candidate`), or for
+     `Completion`, `grades.py` → `Grade`, `pinned_models.py` → `PinnedModel`), or for
      the domain area when it defines a single configuration or specification
      rather than a kind of thing (`settings.py`, `sampling.py`, `environment.py`,
      `client.py`). Functions are verbs that name their object — `classify_parity`

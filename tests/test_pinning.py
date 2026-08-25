@@ -18,15 +18,15 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 
-from odd_number.candidates import (
-    BY_SLUG,
+from odd_number.environment import Treatment
+from odd_number.pinned_models import (
+    HOSTABLE_MODELS,
     LADDER_QUANTIZATION,
-    SLATE,
-    TIER1,
+    PINNED_MODELS,
+    PINNED_MODELS_BY_SLUG,
     build_routing_body,
-    resolve_candidate,
+    resolve_pinned_model,
 )
-from odd_number.environment import Variant
 from odd_number.provenance import audit_pins, find_pin_mismatches, normalise_provider_key
 from odd_number.rollouts import Rollout, RolloutRequest, collect_rollout
 
@@ -34,7 +34,7 @@ from odd_number.rollouts import Rollout, RolloutRequest, collect_rollout
 def pinned_rollout(**overrides: object) -> dict[str, object]:
     """One results-file record whose pins held, before overrides."""
     record: dict[str, object] = {
-        "variant": "conflict-grader",
+        "treatment": "conflict-grader",
         "index": 0,
         "error": None,
         "provider": "deepinfra/fp8",
@@ -46,28 +46,28 @@ def pinned_rollout(**overrides: object) -> dict[str, object]:
     return {**record, **overrides}
 
 
-# --- the slate is actually pinned ----------------------------------------
+# --- every model is actually pinned ----------------------------------------
 
 
-def test_every_candidate_sends_a_snapshot_not_a_bare_alias() -> None:
-    """Tier 1 is what we would self-host, so its weights must be nailed down.
+def test_every_pinned_model_sends_a_snapshot_not_a_bare_alias() -> None:
+    """The hostable models are what we would self-host, so their weights must be nailed down.
 
     OpenRouter is free to repoint an alias at a newer checkpoint. A dated slug
     is the only thing that survives that.
     """
-    for candidate in TIER1:
-        assert candidate.snapshot != candidate.slug, f"{candidate.slug} is pinned to an alias"
+    for model in HOSTABLE_MODELS:
+        assert model.snapshot != model.slug, f"{model.slug} is pinned to an alias"
 
 
 def test_snapshots_belong_to_the_model_they_claim() -> None:
     """Catches a transposed or mistyped snapshot pointing at a different model."""
-    for candidate in SLATE:
-        assert candidate.snapshot.startswith(candidate.slug), candidate.slug
+    for model in PINNED_MODELS:
+        assert model.snapshot.startswith(model.slug), model.slug
 
 
 def test_provider_tags_name_a_provider() -> None:
-    for candidate in SLATE:
-        assert candidate.provider, f"{candidate.slug} has no pinned provider"
+    for model in PINNED_MODELS:
+        assert model.provider, f"{model.slug} has no pinned provider"
 
 
 def test_routing_refuses_substitutes() -> None:
@@ -81,12 +81,12 @@ def test_routing_refuses_substitutes() -> None:
 def test_resolve_rejects_a_model_that_is_not_pinned() -> None:
     """An unpinned run produces a file that cannot be compared with a pinned one."""
     try:
-        resolve_candidate("deepseek/deepseek-r1")
+        resolve_pinned_model("deepseek/deepseek-r1")
     except KeyError as exc:
-        assert "not on the pinned slate" in exc.args[0]
+        assert "is not a pinned model" in exc.args[0]
         assert "qwen/qwen3.6-27b" in exc.args[0], "the error should list the alternatives"
     else:
-        raise AssertionError("an off-slate model was accepted")
+        raise AssertionError("an unpinned model was accepted")
 
 
 # --- lens/checkpoint agreement -------------------------------------------
@@ -97,30 +97,30 @@ def test_gemma_lens_is_known_not_to_match_the_served_weights() -> None:
     model, while OpenRouter serves `google/gemma-4-31B-it`. Treating them as
     interchangeable would produce readouts from the wrong weights.
     """
-    gemma = BY_SLUG["google/gemma-4-31b-it"]
+    gemma = PINNED_MODELS_BY_SLUG["google/gemma-4-31b-it"]
     assert gemma.lens_ckpt == "google/gemma-4-31B"
     assert gemma.hf_id == "google/gemma-4-31B-it"
     assert not gemma.lens_matches_served_weights
 
 
 def test_only_a_lens_whose_provenance_was_read_counts_as_matching() -> None:
-    """`qwen3.5-27b` is the only slate lens whose source checkpoint was verified.
+    """`qwen3.5-27b` is the only pinned model's lens whose source checkpoint was verified.
 
     Its `config.yaml` records `hf_model_name: "Qwen/Qwen3.5-27B"`, matching the
     served weights. The others are unknowns, not matches: `qwen3.6-27b`'s lens
     directory has no config at all, and `qwen3.8-27b`'s community README claims
     `Qwen/Qwen3.8-27B` while its own fit command names `eyes-ml/Qwen3.8-27B`.
     """
-    assert BY_SLUG["qwen/qwen3.5-27b"].lens_matches_served_weights
+    assert PINNED_MODELS_BY_SLUG["qwen/qwen3.5-27b"].lens_matches_served_weights
     for slug in ("qwen/qwen3.6-27b", "qwen/qwen3.8-27b"):
-        assert not BY_SLUG[slug].lens_matches_served_weights, slug
+        assert not PINNED_MODELS_BY_SLUG[slug].lens_matches_served_weights, slug
 
 
 def test_an_unread_provenance_never_counts_as_a_match() -> None:
     """Guards the mechanism itself: filling in lens_ckpt by hand must not be
     enough to make a lens 'match'. Only reading the artefact is.
     """
-    guessed = replace(BY_SLUG["qwen/qwen3.6-27b"], lens_ckpt="Qwen/Qwen3.6-27B")
+    guessed = replace(PINNED_MODELS_BY_SLUG["qwen/qwen3.6-27b"], lens_ckpt="Qwen/Qwen3.6-27B")
     assert not guessed.lens_matches_served_weights
     assert replace(guessed, lens_ckpt_source="config.yaml").lens_matches_served_weights
 
@@ -203,8 +203,8 @@ def test_audit_counts_unverified_separately_from_problems(tmp_path) -> None:
 
 def test_a_rollout_records_the_snapshot_and_provider_it_used() -> None:
     """The alias alone does not identify the run, so both must reach the file."""
-    candidate = BY_SLUG["qwen/qwen3.6-27b"]
-    rollout = collect_rollout(None, RolloutRequest(candidate, Variant(condition="conflict"), 0))
+    model = PINNED_MODELS_BY_SLUG["qwen/qwen3.6-27b"]
+    rollout = collect_rollout(None, RolloutRequest(model, Treatment(condition="conflict"), 0))
     assert isinstance(rollout, Rollout)
     assert rollout.model == "qwen/qwen3.6-27b"
     assert rollout.snapshot == "qwen/qwen3.6-27b-20260422"
@@ -220,7 +220,10 @@ def test_the_three_qwen_rungs_share_an_architecture() -> None:
     If these ever diverge, a difference between rungs stops being attributable
     to post-training and the comparison silently becomes about scale.
     """
-    rungs = [BY_SLUG[s] for s in ("qwen/qwen3.5-27b", "qwen/qwen3.6-27b", "qwen/qwen3.8-27b")]
+    rungs = [
+        PINNED_MODELS_BY_SLUG[s]
+        for s in ("qwen/qwen3.5-27b", "qwen/qwen3.6-27b", "qwen/qwen3.8-27b")
+    ]
     assert len({c.params_b for c in rungs}) == 1
 
 
@@ -231,14 +234,20 @@ def test_the_three_qwen_rungs_share_a_quantization() -> None:
     serves all three rungs reliably — see LADDER_QUANTIZATION for the two that
     were tried and why they failed.
     """
-    rungs = [BY_SLUG[s] for s in ("qwen/qwen3.5-27b", "qwen/qwen3.6-27b", "qwen/qwen3.8-27b")]
+    rungs = [
+        PINNED_MODELS_BY_SLUG[s]
+        for s in ("qwen/qwen3.5-27b", "qwen/qwen3.6-27b", "qwen/qwen3.8-27b")
+    ]
     assert {c.quantization for c in rungs} == {LADDER_QUANTIZATION}
     assert all(c.provider.endswith(f"/{LADDER_QUANTIZATION}") for c in rungs)
 
 
 def test_the_ladders_provider_confound_is_confined_to_one_rung() -> None:
     """Two of three rungs share a provider; the comparison must name the third."""
-    rungs = [BY_SLUG[s] for s in ("qwen/qwen3.5-27b", "qwen/qwen3.6-27b", "qwen/qwen3.8-27b")]
+    rungs = [
+        PINNED_MODELS_BY_SLUG[s]
+        for s in ("qwen/qwen3.5-27b", "qwen/qwen3.6-27b", "qwen/qwen3.8-27b")
+    ]
     providers = [c.provider.split("/")[0] for c in rungs]
     assert len(set(providers)) == 2, "the ladder should span at most two providers"
     assert providers.count("deepinfra") == 2

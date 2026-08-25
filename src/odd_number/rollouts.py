@@ -3,7 +3,7 @@
 Observability contract (AGENTS.md): every rollout is appended the moment it
 returns, so a kill at any point loses at most one in-flight call. Re-running the
 same command skips rollouts already present in the output file, keyed by
-(variant, index) — so `--n 20` after `--n 5` collects only the missing 15.
+(treatment, index) — so `--n 20` after `--n 5` collects only the missing 15.
 
 This module *collects*; it does not judge. Parsing a number out of a response is
 where measurement bugs hide, so that lives in `grades.py` and runs as a
@@ -21,14 +21,15 @@ from __future__ import annotations
 import hashlib
 import json
 import random
+from collections.abc import Iterator, Sequence
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from time import monotonic
-from typing import Any, NotRequired, TextIO, TypedDict
+from typing import Any, Final, NotRequired, TextIO, TypedDict
 
 from openrouter import OpenRouter
 
-from odd_number.candidates import REASONING_ENABLED, Candidate, build_routing_body
 from odd_number.client import METADATA_ENABLED
 from odd_number.completions import (
     READABLE_REASONING,
@@ -37,7 +38,8 @@ from odd_number.completions import (
     TokenUsage,
     parse_completion,
 )
-from odd_number.environment import Variant, build_prompt
+from odd_number.environment import Treatment, build_prompt
+from odd_number.pinned_models import REASONING_ENABLED, PinnedModel, build_routing_body
 from odd_number.sampling import DEFAULT_SAMPLING, SamplingParams
 
 
@@ -56,14 +58,14 @@ class RolloutRecord(TypedDict):
     that a key was misspelled.
     """
 
-    variant: NotRequired[str]
+    treatment: NotRequired[str]
     condition: NotRequired[str]
     index: NotRequired[int]
     model: NotRequired[str]
     snapshot: NotRequired[str]
     provider: NotRequired[str]
     sampling: NotRequired[dict[str, Any]]
-    seed: NotRequired[int]
+    seed: NotRequired[int | None]
     prompt: NotRequired[str]
     response: NotRequired[str]
     reasoning: NotRequired[str]
@@ -99,7 +101,7 @@ class Rollout:
       — `model` would look identical.
     """
 
-    variant: str
+    treatment: str
     condition: str
     index: int
     model: str
@@ -107,7 +109,7 @@ class Rollout:
     provider: str
     reasoning_effort: str | None
     sampling: dict[str, Any]
-    seed: int
+    seed: int | None
     prompt: str
     response: str
     reasoning: str
@@ -134,13 +136,13 @@ class Rollout:
 class RolloutRequest:
     """Everything one rollout needs, grouped so it travels as a single value.
 
-    Passing `(client, variant, index, candidate, sampling)` positionally through
-    the call chain is how argument-order bugs get in — `variant` and `candidate`
+    Passing `(client, treatment, index, model, sampling)` positionally through
+    the call chain is how argument-order bugs get in — `treatment` and `model`
     are both objects nobody would notice transposed at a call site.
     """
 
-    candidate: Candidate
-    variant: Variant
+    model: PinnedModel
+    treatment: Treatment
     index: int
     sampling: SamplingParams = field(default=DEFAULT_SAMPLING)
 
@@ -171,15 +173,48 @@ def read_rollouts(path: Path) -> list[RolloutRecord]:
     return records
 
 
-def load_completed_keys(out_path: Path) -> set[tuple[str, int]]:
-    """(variant, index) pairs already collected, so a re-run resumes.
+#: The finish reason a provider reports when it aborted the generation itself.
+#: Such a rollout has no answer and is not the model's doing, so it is retried
+#: on resume like an errored call — unlike `length`, which is the model's own
+#: trace hitting the cap and is real data about that model.
+ABORTED_BY_PROVIDER: Final[str] = "error"
 
-    Errored rollouts are deliberately absent, so a re-run retries them.
+
+def is_collected(record: RolloutRecord) -> bool:
+    """Whether a rollout counts as done for resume purposes."""
+    return record.get("error") is None and record.get("finish_reason") != ABORTED_BY_PROVIDER
+
+
+def deduplicate_rollouts(records: list[RolloutRecord]) -> list[RolloutRecord]:
+    """One row per (treatment, index), the first collected one winning.
+
+    Two collectors writing the same file at once — a loop shell stopped while
+    its child kept running, then relaunched — append the same key twice. The
+    second copy is a real rollout that cost real money, but grading it would
+    count one sample as two, so it is dropped here. First wins because it is
+    the one a resume would also have treated as done.
+    """
+    seen: set[tuple[str, int]] = set()
+    unique: list[RolloutRecord] = []
+    for record in records:
+        key = (record["treatment"], record["index"])
+        if not is_collected(record) or key in seen:
+            continue
+        seen.add(key)
+        unique.append(record)
+    return unique
+
+
+def load_completed_keys(out_path: Path) -> set[tuple[str, int]]:
+    """(treatment, index) pairs already collected, so a re-run resumes.
+
+    Errored rollouts and provider aborts are deliberately absent, so a re-run
+    retries them.
     """
     return {
-        (record["variant"], record["index"])
+        (record["treatment"], record["index"])
         for record in read_rollouts(out_path)
-        if record.get("error") is None
+        if is_collected(record)
     }
 
 
@@ -223,7 +258,7 @@ def build_mock_completion(prompt: str, seed: int) -> Completion:
 
 
 def request_completion(
-    client: OpenRouter, candidate: Candidate, prompt: str, seed: int, sampling: SamplingParams
+    client: OpenRouter, model: PinnedModel, prompt: str, seed: int, sampling: SamplingParams
 ) -> Completion:
     """One chat completion against a pinned endpoint.
 
@@ -234,15 +269,16 @@ def request_completion(
     failures internally.
     """
     extra: dict[str, Any] = {}
-    if candidate.effort is not None:
-        extra["reasoning_effort"] = candidate.effort
+    if model.effort is not None:
+        extra["reasoning_effort"] = model.effort
+    if model.seed_supported:
+        extra["seed"] = seed
     result = client.chat.send(
-        model=candidate.snapshot,
+        model=model.snapshot,
         messages=[{"role": "user", "content": prompt}],
-        seed=seed,
         stream=False,
         reasoning=REASONING_ENABLED,
-        provider=build_routing_body(candidate.provider),
+        provider=build_routing_body(model.provider),
         x_open_router_metadata=METADATA_ENABLED,
         **sampling.as_request_kwargs(),
         **extra,
@@ -258,18 +294,23 @@ def build_rollout(
     error: str | None,
     elapsed_s: float,
 ) -> Rollout:
-    """Assemble the record. A failed rollout records blanks, never a fake answer."""
+    """Assemble the record. A failed rollout records blanks, never a fake answer.
+
+    `seed` is recorded only if it was sent: a seed the endpoint never saw is
+    not a fact about the rollout, so it is written as None rather than as the
+    number that would have been used.
+    """
     done = completion or Completion(gen_id="", response="", reasoning="")
     return Rollout(
-        variant=request.variant.label,
-        condition=request.variant.condition,
+        treatment=request.treatment.label,
+        condition=request.treatment.condition,
         index=request.index,
-        model=request.candidate.slug,
-        snapshot=request.candidate.snapshot,
-        provider=request.candidate.provider,
-        reasoning_effort=request.candidate.effort,
+        model=request.model.slug,
+        snapshot=request.model.snapshot,
+        provider=request.model.provider,
+        reasoning_effort=request.model.effort,
         sampling=request.sampling.as_record(),
-        seed=seed,
+        seed=seed if request.model.seed_supported else None,
         prompt=prompt,
         response=done.response,
         reasoning=done.reasoning,
@@ -297,8 +338,8 @@ def collect_rollout(client: OpenRouter | None, request: RolloutRequest) -> Rollo
     `error` field and collection continues. The caller decides when a run of
     consecutive failures means stopping.
     """
-    prompt = build_prompt(request.variant)
-    seed = derive_seed(request.variant.label, request.index)
+    prompt = build_prompt(request.treatment)
+    seed = derive_seed(request.treatment.label, request.index)
     started = monotonic()
     completion: Completion | None = None
     error: str | None = None
@@ -306,12 +347,47 @@ def collect_rollout(client: OpenRouter | None, request: RolloutRequest) -> Rollo
         if client is None:
             completion = build_mock_completion(prompt, seed)
         else:
-            completion = request_completion(
-                client, request.candidate, prompt, seed, request.sampling
-            )
+            completion = request_completion(client, request.model, prompt, seed, request.sampling)
     except Exception as exc:  # noqa: BLE001 — recorded, not swallowed
         error = f"{type(exc).__name__}: {exc}"
     return build_rollout(request, prompt, seed, completion, error, round(monotonic() - started, 3))
+
+
+def collect_rollouts(
+    client: OpenRouter | None,
+    requests: Sequence[RolloutRequest],
+    workers: int = 1,
+) -> Iterator[Rollout]:
+    """Collect many rollouts, yielding each the moment it completes.
+
+    `workers` is how many calls are in flight at once. At 1 the requests run
+    strictly in order, which is the default and the behaviour every results
+    file so far was collected under. Above 1 they complete in whatever order
+    the provider returns them — harmless, because every rollout carries its
+    own (treatment, index) and the resume logic keys on exactly that.
+
+    Concurrency exists for one reason: a reasoning model at high effort on a
+    slow endpoint takes minutes per rollout, and eighty of those in sequence
+    is an afternoon. Rate limits are the provider's to signal and the SDK's to
+    back off from; a rollout that exhausts its retries is recorded as an error
+    and re-attempted on the next run, the same as it would be sequentially.
+
+    Yields rather than returns so the caller can append each rollout to disk
+    as it lands (observability contract: a kill loses at most what is in
+    flight). Closing the iterator early cancels every request not yet started;
+    the in-flight ones finish on their own threads and are not written.
+    """
+    if workers <= 1:
+        for request in requests:
+            yield collect_rollout(client, request)
+        return
+    pool = ThreadPoolExecutor(max_workers=workers)
+    try:
+        futures = [pool.submit(collect_rollout, client, request) for request in requests]
+        for future in as_completed(futures):
+            yield future.result()
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 def append_rollout(handle: TextIO, rollout: Rollout) -> None:

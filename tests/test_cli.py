@@ -29,7 +29,15 @@ def test_every_subcommand_is_reachable() -> None:
     parser = cli.build_parser()
     actions = [a for a in parser._subparsers._actions if hasattr(a, "choices") and a.choices]
     names = set(actions[0].choices)
-    assert names == {"prompts", "models", "endpoints", "collect", "audit", "grade"}
+    assert names == {
+        "prompts",
+        "models",
+        "endpoints",
+        "collect",
+        "audit",
+        "grade",
+        "validate-judge",
+    }
 
 
 def test_every_subcommand_binds_a_handler() -> None:

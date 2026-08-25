@@ -16,11 +16,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from odd_number.candidates import BY_SLUG
-from odd_number.environment import Variant
+from odd_number.environment import Treatment
+from odd_number.pinned_models import PINNED_MODELS_BY_SLUG
 from odd_number.rollouts import (
     RolloutRequest,
     collect_rollout,
+    collect_rollouts,
     derive_seed,
     load_completed_keys,
 )
@@ -33,20 +34,37 @@ def test_done_keys_skips_errored_rollouts(tmp_path: Path) -> None:
     """An errored rollout must be re-attempted, not counted as collected."""
     path = tmp_path / "r.jsonl"
     path.write_text(
-        json.dumps({"variant": "conflict-grader", "index": 0, "error": None})
+        json.dumps({"treatment": "conflict-grader", "index": 0, "error": None})
         + "\n"
-        + json.dumps({"variant": "conflict-grader", "index": 1, "error": "boom"})
+        + json.dumps({"treatment": "conflict-grader", "index": 1, "error": "boom"})
         + "\n",
         encoding="utf-8",
     )
     assert load_completed_keys(path) == {("conflict-grader", 0)}
 
 
+def test_done_keys_retries_a_provider_abort(tmp_path: Path) -> None:
+    """A `finish_reason="error"` row has no answer and was not the model's doing."""
+    path = tmp_path / "r.jsonl"
+    path.write_text(
+        json.dumps(
+            {"treatment": "conflict-grader", "index": 0, "error": None, "finish_reason": "error"}
+        )
+        + "\n"
+        + json.dumps(
+            {"treatment": "conflict-grader", "index": 1, "error": None, "finish_reason": "length"}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert load_completed_keys(path) == {("conflict-grader", 1)}
+
+
 def test_done_keys_tolerates_a_torn_final_line(tmp_path: Path) -> None:
     """A hard kill mid-write must not make the whole results file unreadable."""
     path = tmp_path / "r.jsonl"
     path.write_text(
-        json.dumps({"variant": "agree-grader", "index": 0, "error": None}) + '\n{"var',
+        json.dumps({"treatment": "agree-grader", "index": 0, "error": None}) + '\n{"var',
         encoding="utf-8",
     )
     assert load_completed_keys(path) == {("agree-grader", 0)}
@@ -85,8 +103,8 @@ def test_a_rollout_records_the_sampling_it_used() -> None:
     """
     sampling = SamplingParams(temperature=0.7, top_p=0.9, top_k=None, max_tokens=512)
     request = RolloutRequest(
-        candidate=BY_SLUG["qwen/qwen3.6-27b"],
-        variant=Variant(condition="conflict"),
+        model=PINNED_MODELS_BY_SLUG["qwen/qwen3.6-27b"],
+        treatment=Treatment(condition="conflict"),
         index=0,
         sampling=sampling,
     )
@@ -120,3 +138,41 @@ def test_every_sampling_parameter_is_sent_explicitly() -> None:
     """
     sent = SamplingParams().as_request_kwargs()
     assert {"temperature", "top_p", "top_k", "max_tokens"} <= set(sent)
+
+
+# --- concurrency ---------------------------------------------------------
+
+
+def test_concurrent_collection_yields_every_request_exactly_once() -> None:
+    """Workers change the order rollouts land in, never which ones land."""
+    requests = [
+        RolloutRequest(
+            model=PINNED_MODELS_BY_SLUG["qwen/qwen3.6-27b"], treatment=treatment, index=index
+        )
+        for treatment in (Treatment(condition="conflict"), Treatment(condition="agree"))
+        for index in range(6)
+    ]
+    sequential = list(collect_rollouts(None, requests, workers=1))
+    concurrent = list(collect_rollouts(None, requests, workers=4))
+    keyed = {(r.treatment, r.index): r for r in concurrent}
+    assert len(keyed) == len(requests)
+    for rollout in sequential:
+        assert keyed[(rollout.treatment, rollout.index)] == rollout
+
+
+# --- endpoints without seed ----------------------------------------------
+
+
+def test_a_model_without_seed_support_records_no_seed() -> None:
+    """The results file must not claim a seed the endpoint never received."""
+    from dataclasses import replace
+
+    unseeded = replace(PINNED_MODELS_BY_SLUG["qwen/qwen3.6-27b"], seed_supported=False)
+    request = RolloutRequest(model=unseeded, treatment=Treatment(condition="agree"), index=0)
+    assert collect_rollout(None, request).seed is None
+    seeded = RolloutRequest(
+        model=PINNED_MODELS_BY_SLUG["qwen/qwen3.6-27b"],
+        treatment=Treatment(condition="agree"),
+        index=0,
+    )
+    assert collect_rollout(None, seeded).seed == derive_seed("agree-grader", 0)
