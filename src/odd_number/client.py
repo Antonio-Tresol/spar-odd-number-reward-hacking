@@ -1,35 +1,16 @@
 """The configured OpenRouter client.
 
-Uses the official first-party SDK (`openrouter`, Speakeasy-generated from the
-OpenAPI spec). OpenRouter explicitly does not recommend the OpenAI SDK with a
-base_url override.
+The official `openrouter` SDK, with exactly one retry layer: the SDK's own
+`RetryConfig` already does exponential backoff with jitter, transport-error
+retries and `Retry-After`, and a second layer on top would multiply attempts
+and turn a rate limit into a long, expensive stall. Retryable status codes
+are left at the SDK's per-operation defaults.
 
-**One retry layer, not two.** The SDK retries internally via `RetryConfig`, and
-its `BackoffStrategy` already does the whole policy this project used to
-hand-roll: exponential backoff with jitter, transport-error retries, and — per
-its own docstring — using a `Retry-After` or `retry-after-ms` header as-is when
-the response carries one. Wrapping that in a second retry library would
-multiply attempts (6 outer x N inner) and turn a rate limit into a much longer,
-much more expensive stall. So the SDK owns retries and nothing sits on top.
-
-The one behavioural difference worth knowing: the SDK's jitter is *additive*
-(a random value in [0, jitter_ms] added to the computed interval) rather than
-full jitter (uniform across [0, cap]). Additive jitter decorrelates retries
-less aggressively. It is fine at this scale — a handful of sequential calls,
-not a fleet — but it is a real difference, not an equivalence.
-
-Retryable status codes are left at the SDK's per-operation defaults rather than
-overridden: those come from the OpenAPI spec, and hand-listing them risks
-retrying something permanent like a 400, which fails identically forever.
-
-## Response metadata
-
-`x_open_router_metadata` is OFF by default, and turning it on is what makes
-provenance cheap. With it enabled every response carries `openrouter_metadata`:
-the served provider, the *dated* model actually routed to, the routing strategy,
-and the cost. Without it, `ChatResult.model` echoes only the bare alias and there
-is no provider field at all — which previously forced a second, lagged API call
-per rollout just to learn who served it. One header replaced that entirely.
+`x_open_router_metadata="enabled"` (off by default) makes every response
+carry the served provider, the dated model actually routed to, the routing
+strategy and the cost — the provenance `completions.py` reads and
+`provenance.py` audits. Without it the response echoes only the bare alias
+and names no provider.
 
 Credentials are not read here; `settings.py` owns configuration.
 """
@@ -43,7 +24,7 @@ from openrouter.utils import BackoffStrategy
 
 from odd_number.settings import Settings, load_settings
 
-#: Value for `x_open_router_metadata`. See "Response metadata" above.
+#: Value for `x_open_router_metadata`; the module docstring says what it buys.
 #: The SDK types this as a literal — "enabled" or "disabled", not a bool.
 METADATA_ENABLED: Final[str] = "enabled"
 

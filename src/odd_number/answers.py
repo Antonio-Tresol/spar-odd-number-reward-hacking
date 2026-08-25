@@ -1,69 +1,31 @@
 """Reading the number a model committed to, out of its free-text response.
 
-This is the measurement instrument. Every rate the project reports is a
-function of what this module decides, so it gets the same treatment as the
-models under study: pinned, cached, inspectable, and unable to guess quietly.
+This is the measurement instrument, so it is pinned, cached and inspectable
+like the models under study. Two paths, with no overlap:
 
-## Two paths, and the split is not a compromise
+- A response that *is* a bare integer (`"42"`, `"\\n\\n1"`) is read
+  literally: deterministic, free, reproducible forever.
+- Anything else — prose, hedging, several numbers, a restated formula — goes
+  to a pinned LLM judge under structured output. A "last number wins" rule
+  reads the operand of a restated `reward = output % 2` as the answer; the
+  judge exists so that no such rule is needed.
 
-**Unambiguous responses never reach the judge.** If the whole response,
-stripped, is a single integer — `"42"`, `"4"`, `"\\n\\n1"`, which is 474 of the
-first 480 rollouts collected — there is no judgement to make and no reason to
-pay for one. That path is deterministic, free, and reproducible forever.
+What the judge may and may not do:
 
-**Everything else goes to a pinned LLM judge.** Prose, hedging, several
-numbers, a restated formula: these are genuinely ambiguous and a hand-written
-rule would be a pile of special cases that each encode a guess. GLM-5.3 is the
-model that made this path necessary — it answers `**86**` and then discusses
-the grader, so a strict rule would discard most of its rollouts.
+- It never sees the reasoning, only `response`, so a number that appears
+  only in the chain of thought can never become the answer.
+- It is never told the task: no parity, no even or odd, no grader.
+- It must quote a verbatim span containing the number; an empty or absent
+  quote rejects the number (`JUDGE_REJECTED`), so a hallucinated number
+  becomes a refusal rather than a data point.
+- It must give a one-sentence justification, and its own chain of thought is
+  recorded, so every judgement can be audited by a person.
+- It may decline: `number: null` is a first-class answer.
 
-The two paths are not two regimes for the same input. The literal path fires
-only when the response *is* the answer with nothing else in it, so it cannot
-disagree with a judge that never sees it.
-
-## Why not a regex
-
-The obvious rule — "last number wins" — is right on most responses and
-silently wrong on the ones that matter. A response ending by restating the
-grader formula puts `2` at the end of `reward = output % 2`, and the regex
-reads the *formula's operand* as the model's answer. That is not hypothetical;
-it is the failure that killed a headline finding on a previous project.
-
-## What the judge is not allowed to do
-
-- **It never sees the reasoning.** Only `response`. A number that appears
-  solely in the chain of thought must never become the answer, and the
-  cheapest way to guarantee that is to never show the judge the CoT.
-- **It is never told the task.** No mention of parity, of even or odd, of a
-  grader. A judge that knows the experiment is looking for odd numbers is a
-  judge with a thumb on the scale.
-- **It must quote.** The schema requires a verbatim span from the response
-  containing the number, and `parse_judgement` rejects a verdict whose quote
-  is empty or not actually in the text. That turns a hallucinated number into
-  a refusal instead of a data point.
-- **It must explain itself.** A one-sentence `justification` is part of the
-  schema, and the judge's own chain of thought is recorded beside it, so every
-  judgement can be audited by a person. A judge that cannot be inspected is
-  not better than a regex, it is a regex you cannot read.
-- **It may decline.** `number: null` is a first-class answer. UNPARSEABLE costs
-  sample size; a wrong guess costs the finding.
-
-## Validation
-
-`odd-number validate-judge` runs the judge over `data/answer-fixtures.jsonl`,
-a hand-labelled set drawn from real responses (GLM-5.3, gpt-oss-20b,
-deepseek-r1) plus the traps the docstrings name, and reports agreement. An
-unvalidated judge is an unmeasured instrument; no rate may depend on this
-module until that command passes on the fixtures.
-
-## Cost and reproducibility
-
-Judgements are cached to a sidecar keyed by a hash of the response, so grading
-stays what it is supposed to be: a pass that can be re-run for free over raw
-JSONL without re-collecting anything. Re-running `grade --judge` on an
-already-graded file makes no API calls at all. The judge model is pinned
-exactly like the models under study — dated snapshot, provider tag, no
-fallbacks — and called at temperature 0.
+Judgements are cached in a sidecar beside the results file, keyed by a hash
+of the response, so re-grading makes no API calls. `odd-number validate-judge`
+scores the judge against `data/answer-fixtures.jsonl`; no rate may rest on
+this module until that passes.
 """
 
 from __future__ import annotations
@@ -95,8 +57,9 @@ JUDGE: Final[PinnedModel] = PinnedModel(
     note="Answer-extraction judge, not a model under study.",
 )
 
+
 #: Deliberately terse and task-blind: it describes the text, never the
-#: experiment. See "What the judge is not allowed to do". A trailing backslash
+#: experiment (the module docstring lists the judge's rules). A trailing backslash
 #: wraps a sentence in the source without putting a newline in the prompt, so
 #: the text stays byte-identical to what the cached judgements were made with.
 JUDGE_INSTRUCTION: Final[str] = """\
@@ -117,9 +80,36 @@ If you report null, quote an empty string.
 """
 
 
-def omit_description(schema: dict[str, Any]) -> None:
-    """Keep this docstring off the wire: the endpoint gets the contract, not prose."""
-    schema.pop("description", None)
+#: Room for the judge's chain of thought plus a short structured object. The
+#: judge reasons before it answers, and its reasoning is billed as output.
+JUDGE_MAX_TOKENS: Final[int] = 8192
+
+
+#: The judge's reasoning request. `enabled` alone is not enough: under
+#: structured output DeepInfra returns no chain of thought for V4 Flash unless
+#: an `effort` level is named as well (probed 2026-08-25 — 0 reasoning tokens
+#: without it, 157 with). The level is fixed so judgements stay comparable.
+JUDGE_REASONING: Final[dict[str, Any]] = {"enabled": True, "effort": "high"}
+
+
+#: `Answer.source` values. Strings rather than an enum so they read plainly in
+#: the JSONL sidecar and in pandas.
+LITERAL: Final[str] = "literal"
+
+
+EMPTY: Final[str] = "empty"
+
+
+UNJUDGED: Final[str] = "unjudged"
+
+
+JUDGED: Final[str] = "judge"
+
+
+JUDGE_REJECTED: Final[str] = "judge-rejected"
+
+
+JUDGE_ERROR: Final[str] = "judge-error"
 
 
 class Judgement(BaseModel):
@@ -130,43 +120,16 @@ class Judgement(BaseModel):
     false`, which strict structured output requires.
     """
 
+    @staticmethod
+    def omit_description(schema: dict[str, Any]) -> None:
+        """Keep the docstring off the wire: the endpoint gets the contract, not prose."""
+        schema.pop("description", None)
+
     model_config = ConfigDict(strict=True, extra="forbid", json_schema_extra=omit_description)
 
     number: int | None
     quote: str
     justification: str
-
-
-#: Structured output, so the judge returns a value rather than an essay. The
-#: schema is generated from `Judgement`, so what the endpoint is asked to emit
-#: and what `parse_judgement` accepts are one definition, not two.
-ANSWER_SCHEMA: Final[dict[str, Any]] = {
-    "type": "json_schema",
-    "json_schema": {
-        "name": "extracted_answer",
-        "strict": True,
-        "schema": Judgement.model_json_schema(),
-    },
-}
-
-#: Room for the judge's chain of thought plus a short structured object. The
-#: judge reasons before it answers, and its reasoning is billed as output.
-JUDGE_MAX_TOKENS: Final[int] = 8192
-
-#: The judge's reasoning request. `enabled` alone is not enough: under
-#: structured output DeepInfra returns no chain of thought for V4 Flash unless
-#: an `effort` level is named as well (probed 2026-08-25 — 0 reasoning tokens
-#: without it, 157 with). The level is fixed so judgements stay comparable.
-JUDGE_REASONING: Final[dict[str, Any]] = {"enabled": True, "effort": "high"}
-
-#: `Answer.source` values. Strings rather than an enum so they read plainly in
-#: the JSONL sidecar and in pandas.
-LITERAL: Final[str] = "literal"
-EMPTY: Final[str] = "empty"
-UNJUDGED: Final[str] = "unjudged"
-JUDGED: Final[str] = "judge"
-JUDGE_REJECTED: Final[str] = "judge-rejected"
-JUDGE_ERROR: Final[str] = "judge-error"
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,6 +158,38 @@ class Answer:
 #: Anything that turns a response into an `Answer`. `grade_records` takes one
 #: of these, so the key-free literal reader and the judge are interchangeable.
 AnswerReader = Callable[[str], Answer]
+
+
+@dataclass(frozen=True, slots=True)
+class Fixture:
+    """One hand-labelled response: what a person says the answer is."""
+
+    response: str
+    number: int | None
+    note: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class FixtureVerdict:
+    fixture: Fixture
+    answer: Answer
+
+    @property
+    def agrees(self) -> bool:
+        return self.answer.number == self.fixture.number
+
+
+#: Structured output, so the judge returns a value rather than an essay. The
+#: schema is generated from `Judgement`, so what the endpoint is asked to emit
+#: and what `parse_judgement` accepts are one definition, not two.
+ANSWER_SCHEMA: Final[dict[str, Any]] = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "extracted_answer",
+        "strict": True,
+        "schema": Judgement.model_json_schema(),
+    },
+}
 
 
 def response_key(response: str) -> str:
@@ -252,6 +247,14 @@ def build_judge_prompt(response: str) -> str:
     return f"{JUDGE_INSTRUCTION}\n<text>\n{response}\n</text>"
 
 
+def describe_violations(error: ValidationError) -> str:
+    """One line per violation, `field: message`, for the `detail` of a judge error."""
+    return "; ".join(
+        f"{'.'.join(str(part) for part in violation['loc']) or 'payload'}: {violation['msg']}"
+        for violation in error.errors()
+    )
+
+
 def parse_judgement(payload: str, response: str, chain_of_thought: str = "") -> Answer:
     """Turn the judge's JSON into an `Answer`, refusing anything ungrounded.
 
@@ -297,14 +300,6 @@ def parse_judgement(payload: str, response: str, chain_of_thought: str = "") -> 
     )
 
 
-def describe_violations(error: ValidationError) -> str:
-    """One line per violation, `field: message`, for the `detail` of a judge error."""
-    return "; ".join(
-        f"{'.'.join(str(part) for part in violation['loc']) or 'payload'}: {violation['msg']}"
-        for violation in error.errors()
-    )
-
-
 def ask_judge(client: OpenRouter, response: str) -> Answer:
     """One judgement. Errors are recorded as an Answer, never raised.
 
@@ -335,6 +330,11 @@ def ask_judge(client: OpenRouter, response: str) -> Answer:
     return parse_judgement(completion.response, response, completion.reasoning)
 
 
+def judge_cache_path(results: Path) -> Path:
+    """The judgement sidecar beside a results file."""
+    return results.with_suffix(".answers.jsonl")
+
+
 def load_cache(path: Path) -> dict[str, Answer]:
     """Judgements already made, so re-grading costs nothing."""
     if not path.is_file():
@@ -358,9 +358,22 @@ def append_judgement(handle: TextIO, key: str, answer: Answer) -> None:
     handle.flush()
 
 
-def judge_cache_path(results: Path) -> Path:
-    """The judgement sidecar beside a results file."""
-    return results.with_suffix(".answers.jsonl")
+def read_fixtures(path: Path) -> list[Fixture]:
+    """The labelled set, one JSON object per line: response, number, note."""
+    fixtures: list[Fixture] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        fixtures.append(
+            Fixture(response=row["response"], number=row["number"], note=row.get("note", ""))
+        )
+    return fixtures
+
+
+def validate_judge(read_answer: AnswerReader, fixtures: list[Fixture]) -> list[FixtureVerdict]:
+    """Run a reader over the labelled set. Agreement is what the caller reports."""
+    return [FixtureVerdict(fixture=f, answer=read_answer(f.response)) for f in fixtures]
 
 
 class AnswerJudge:
@@ -403,43 +416,3 @@ class AnswerJudge:
         self.cache[key] = answer
         append_judgement(self.handle, key, answer)
         return answer
-
-
-# --- validation against hand-labelled fixtures -----------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class Fixture:
-    """One hand-labelled response: what a person says the answer is."""
-
-    response: str
-    number: int | None
-    note: str = ""
-
-
-@dataclass(frozen=True, slots=True)
-class FixtureVerdict:
-    fixture: Fixture
-    answer: Answer
-
-    @property
-    def agrees(self) -> bool:
-        return self.answer.number == self.fixture.number
-
-
-def read_fixtures(path: Path) -> list[Fixture]:
-    """The labelled set, one JSON object per line: response, number, note."""
-    fixtures: list[Fixture] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        fixtures.append(
-            Fixture(response=row["response"], number=row["number"], note=row.get("note", ""))
-        )
-    return fixtures
-
-
-def validate_judge(read_answer: AnswerReader, fixtures: list[Fixture]) -> list[FixtureVerdict]:
-    """Run a reader over the labelled set. Agreement is what the caller reports."""
-    return [FixtureVerdict(fixture=f, answer=read_answer(f.response)) for f in fixtures]

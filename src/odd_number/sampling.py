@@ -1,45 +1,21 @@
 """Sampling parameters: explicit, recorded, and identical across the ladder.
 
-`temperature=1.0` used to be a literal buried in the function that made the API
-call, and `top_p` / `top_k` / `max_tokens` were not sent at all. Both halves of
-that are problems, and the second is the worse one.
+Every parameter is sent on every call, because an unsent parameter falls
+back to the *provider's* default and the ladder spans two providers; and
+every rollout records the values it was drawn under, because the gaming rate
+is an estimate of a distribution and these parameters are that distribution.
 
-**Unsent is not neutral.** A parameter this project does not send falls back to
-whatever the *provider* defaults to, and providers do not agree. The Qwen ladder
-is pinned to DeepInfra for two rungs and Parasail for the third precisely so the
-rungs stay comparable; leaving `top_p` and `top_k` unsent hands that seam back to
-two independent vendors' defaults. Sending every sampling parameter explicitly
-is what makes the request identical across rungs.
+`temperature=1.0`: the rate is a property of the output distribution, so it
+is sampled as it is — temperature 0 would collapse it to 0% or 100%. It is
+also every vendor's thinking-mode recommendation
+(`notes/sampling-recommendations.md`); where the project deviates from the
+vendors is `top_p=1.0` with `top_k` off.
 
-**A value that is not recorded did not happen.** The gaming rate is an estimate
-of a distribution, and the sampling parameters *are* that distribution. A results
-file that does not carry them cannot be compared with one collected after someone
-edited a literal — which is the same failure the model snapshot and provider pins
-exist to prevent, except self-inflicted and with no API to catch it. So every
-`Rollout` records the settings it was drawn under.
-
-## Why max_tokens is set high
-
-The asymmetry sets the value. Tokens are billed as generated, so a cap that is
-never reached costs exactly nothing — but a cap that *is* reached costs a data
-point: the rollout comes back `finish_reason="length"`, and `grades.py` correctly
-refuses to parse a severed trace, so the answer is lost after being paid for. A
-cheap ceiling and an expensive floor means erring high.
-
-32,768 is roughly 12x the longest trace observed while building the pipeline
-(2,773 tokens, deepseek-r1 under the conflicting grader; 2,406 for qwen3.8-27b),
-and sits under the tightest ceiling on the ladder — OpenRouter reports
-`max_completion_tokens` of 65,536 for qwen3.5-27b, 81,920 for qwen3.6-27b and
-131,072 for qwen3.8-27b, so the same value is accepted by every rung. It remains
-a runaway guard: unbounded generation against a reasoning model at `xhigh` effort
-is how a screening run turns into a bill.
-
-**Why 1.0 and not 0.** Temperature 0 would make each rollout the model's modal
-answer repeated *n* times, and the gaming rate would collapse to 0% or 100% with
-no information in between. This experiment measures how often the model picks an
-odd number, which is a property of its output distribution, so the distribution
-has to be sampled as it is. 1.0 is also the API default, which keeps the
-replication honest to the setting the source post describes.
+`MAX_TOKENS=32_768`: an unreached cap costs nothing and a reached cap loses a
+paid-for data point (`grades.py` refuses a severed trace), so the ceiling
+errs high while still guarding against runaway generation. It sits under
+every Qwen rung's `max_completion_tokens` (65,536 / 81,920 / 131,072); Kimi
+K3's endpoint caps at 16,384 and needs `--max-tokens 16384`.
 """
 
 from __future__ import annotations
@@ -47,7 +23,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any, Final
 
-#: Generation ceiling. See "Why max_tokens is set high" above.
+#: Generation ceiling; the module docstring has the reasoning.
 MAX_TOKENS: Final[int] = 32_768
 
 

@@ -49,7 +49,7 @@ Two kinds of Python live here, and they follow different rules.
   argument parsing lives only in `cli.py`. Type hints throughout, absolute
   imports throughout (`from odd_number.x import y`, never `from .x`).
 
-  Three rules the layout enforces.
+  Five rules the layout enforces.
 
   1. **Vendor types stop at `completions.py`.** Nothing else touches a
      `ChatResult`, and that boundary uses direct typed attribute access, so a
@@ -65,6 +65,20 @@ Two kinds of Python live here, and they follow different rules.
      not `classify`, `build_routing_body` not `routing`, `load_completed_keys`
      not `done_keys`. Types are what the thing *is*, not what happened to it:
      `Grade`, not `Graded`.
+  4. **Every module reads top-down in the same order.** Docstring, imports,
+     then constants (plain values), then types (aliases, dataclasses,
+     pydantic models, exceptions), then module-level instances of those
+     types (`PINNED_MODELS`, `DEFAULT_SAMPLING`, `ANSWER_SCHEMA`), then
+     functions with callees before callers, and last any stateful class that
+     does work (`AnswerJudge`). No underscore-private names: the package is
+     the privacy boundary.
+  5. **Dataclasses inside, pydantic at the edges.** A value the package
+     builds from already-typed data is a frozen, slotted `dataclass`
+     (`PinnedModel`, `Treatment`, `Rollout`, `Grade`). Data that enters from
+     outside is a pydantic model validated where it enters: the environment
+     (`Settings`), the judge's JSON (`Judgement`). `RolloutRecord`, the JSONL
+     row read back from `results/`, is the one boundary still typed without
+     validation (a `TypedDict`).
 
 The split is deliberate: a promoted pipeline that other code imports and tests
 exercise wants to be a package, while a validator that must run in a repo with

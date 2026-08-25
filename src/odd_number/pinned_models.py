@@ -1,74 +1,29 @@
 """Every model the project calls, pinned on both axes that drift on OpenRouter.
 
-Two independent things can drift under you on OpenRouter, and closing one does
-not close the other:
+1. **The snapshot.** `qwen/qwen3.6-27b` is an alias OpenRouter may repoint
+   at a newer checkpoint without notice; the dated slug (`…-20260422`) is
+   what is sent, and it pins the weights. The API rejects made-up dates, so
+   an accepted dated slug is a real pin.
+2. **The endpoint.** One model id may be served by many providers at fp4,
+   fp8, bf16 or undisclosed precision. `PinnedModel.provider` is an endpoint
+   tag (`novita/bf16`) naming provider and quantization together, sent in
+   `provider.order` with `allow_fallbacks=False`, so an unavailable pin is a
+   loud "No endpoints found" rather than a silent reroute.
 
-1. **Which snapshot the alias points at.** `qwen/qwen3.6-27b` is an alias. It
-   currently resolves to `qwen/qwen3.6-27b-20260422`, and OpenRouter is free to
-   repoint it at a newer checkpoint without notice. Sending the *dated* slug
-   pins the weights. This was verified against the live API rather than assumed:
-   `qwen/qwen3.6-27b-20260422` is accepted, while `qwen/qwen3.6-27b-20200101`
-   and `qwen/qwen3.6-27b-notadate` are both rejected with "is not a valid model
-   ID". A bogus suffix failing is what makes the real one meaningful — if every
-   suffix were silently normalised to the alias, dated pinning would be theatre.
+The three Qwen 27Bs form an RL-generation ladder at fixed architecture. No
+provider serves all three reliably, so the ladder holds quantization fixed
+at fp8 (`LADDER_QUANTIZATION`) and lets the provider vary; the residual
+confound — 3.8 on Parasail, 3.5 and 3.6 on DeepInfra — is `Q1.H7.E2.C5`
+and must be reported with every rung comparison.
 
-2. **Which provider and quantization serve the call.** One model id is served by
-   up to 18 independent endpoints at fp4, fp8, bf16, fp16, or undisclosed
-   precision. `google/gemma-4-31b-it` alone spans all four. For a behaviour that
-   turns on a single parity decision, quantization is not a detail to average
-   over. `PinnedModel.provider` holds an endpoint *tag* (`novita/bf16`), which
-   names the provider and the quantization together, and OpenRouter accepts
-   tags in `provider.order`. Some providers do not publish a quantization at
-   all, in which case the tag is a bare slug (`alibaba`) and the precision is
-   simply unknown — see `LADDER_QUANTIZATION` for why the ladder avoids those.
+Two traps. "No endpoints found" also fires when `max_tokens` exceeds an
+endpoint's `max_completion_tokens` (Kimi K3 on DeepInfra caps at 16,384);
+check `odd-number endpoints <slug>` before blaming the pin. And `seed` is
+best-effort at temperature 1.0 on a batched endpoint: pinning fixes the
+*distribution* sampled, not the tokens.
 
-## Pinning the ladder
-
-The three Qwen 27Bs share an identical parameter count, so they differ only in
-post-training — which is what makes them a usable RL-generation ladder, and
-what a careless pin would destroy. Their individually-best endpoints were
-`novita/bf16`, `deepinfra/fp8` and `akashml/bf16`: three providers at two
-precisions, so a rung-to-rung difference could have been generation, provider,
-or number format, with no way to tell which.
-
-Holding the *provider* fixed is the stronger control — it pins the serving
-stack, batching and sampler, not just the number format. It was tried and does
-not work here. Exactly two providers serve all three rungs: Phala reports 0%
-uptime on 3.5, and Alibaba returns a persistent upstream 429 on 3.6
-("temporarily rate-limited upstream"), failing two of three rungs on a
-one-rollout smoke test. That failure is `allow_fallbacks=False` working as
-intended — without it those rollouts would have come back healthy-looking from
-some other endpoint.
-
-So the ladder fixes quantization at fp8, which every rung supports together
-with `seed`, and lets the provider vary. Of the two available confounds this is
-the one to accept: number format is the more plausible route to shifting a
-near-even parity choice. It still gets two of three rungs onto one provider,
-since DeepInfra serves both 3.5 and 3.6 at fp8. **The residual confound, which
-every rung-to-rung comparison must report: 3.8 is served by Parasail.** All
-three pins were smoke-tested live before being written down.
-
-`build_routing_body()` sets `allow_fallbacks=False` so an unavailable pin is a loud error
-rather than a silent reroute — confirmed: pinning a tag that does not serve a
-model raises `NotFoundResponseError: No endpoints found`. `require_parameters`
-extends the same contract to parameters, so a provider that would quietly ignore
-`seed` is refused instead of used.
-
-The same "No endpoints found" also fires when `max_tokens` exceeds the pinned
-endpoint's `max_completion_tokens` — OpenRouter filters the endpoint out
-rather than reporting the cap. Kimi K3 on DeepInfra (cap 16,384) failed
-three rollouts in a row this way at the default 32,768 before the cause was
-found with a 64-token probe. Check `odd-number endpoints <slug>` caps before
-blaming the pin.
-
-None of that makes a hosted rollout replayable token-for-token: at
-`temperature=1.0` on a continuously batched endpoint, `seed` is best-effort.
-What pinning buys is that the *distribution* being sampled is the same one next
-week — which is what the gaming rate and its interval are estimates of.
-
-Provenance of the pinned set: OpenRouter's `/models` and `/models/{id}/endpoints`, and the
-`neuronpedia/jacobian-lens` file tree, all read on 2026-08-24. See
-`notes/model-selection.md` for the full derivation and the numbers.
+Derivation and numbers: `notes/model-selection.md` (catalogue read
+2026-08-24).
 """
 
 from __future__ import annotations
@@ -76,9 +31,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Final
 
-#: Quantization held constant across the three Qwen 27B rungs. See "Pinning the
-#: ladder" in the module docstring for the two provider-fixed designs that were
-#: tried first and why both failed.
+#: Quantization held constant across the three Qwen 27B rungs. The two
+#: provider-fixed designs tried first, and why both failed, are under
+#: "Pinning the ladder" in `notes/model-selection.md`.
 LADDER_QUANTIZATION: Final[str] = "fp8"
 
 #: Sent as `reasoning` on every call. `enabled` is explicit rather than left to

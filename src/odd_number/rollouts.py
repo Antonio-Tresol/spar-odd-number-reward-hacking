@@ -1,19 +1,13 @@
 """Collect Odd Number rollouts and write them to JSONL, one line per rollout.
 
 Observability contract (AGENTS.md): every rollout is appended the moment it
-returns, so a kill at any point loses at most one in-flight call. Re-running the
-same command skips rollouts already present in the output file, keyed by
-(treatment, index) — so `--n 20` after `--n 5` collects only the missing 15.
+returns, so a kill loses at most the in-flight calls, and re-running the same
+command collects only the (treatment, index) pairs not already on disk.
 
-This module *collects*; it does not judge. Parsing a number out of a response is
-where measurement bugs hide, so that lives in `grades.py` and runs as a
-separate pass over the raw JSONL. Raw text is never discarded.
-
-Two boundaries are deliberately outside this module. Retries belong to the SDK
-(`client.py` explains why there is exactly one retry layer), and translating the
-SDK's types into this project's belongs to `completions.py`. Nothing here touches a
-`ChatResult`; it works with `Completion` and lets a vendor shape change fail
-loudly at the boundary instead of quietly here.
+This module collects; it does not judge. Reading a number out of a response
+lives in `grades.py` and runs as a separate pass over the raw JSONL, which is
+never discarded. Retries belong to the SDK (`client.py`) and the SDK's types
+stop at `completions.py`; nothing here touches a `ChatResult`.
 """
 
 from __future__ import annotations
@@ -41,6 +35,12 @@ from odd_number.completions import (
 from odd_number.environment import Treatment, build_prompt
 from odd_number.pinned_models import REASONING_ENABLED, PinnedModel, build_routing_body
 from odd_number.sampling import DEFAULT_SAMPLING, SamplingParams
+
+#: The finish reason a provider reports when it aborted the generation itself.
+#: Such a rollout has no answer and is not the model's doing, so it is retried
+#: on resume like an errored call — unlike `length`, which is the model's own
+#: trace hitting the cap and is real data about that model.
+ABORTED_BY_PROVIDER: Final[str] = "error"
 
 
 class RolloutRecord(TypedDict):
@@ -171,13 +171,6 @@ def read_rollouts(path: Path) -> list[RolloutRecord]:
         except json.JSONDecodeError:
             continue
     return records
-
-
-#: The finish reason a provider reports when it aborted the generation itself.
-#: Such a rollout has no answer and is not the model's doing, so it is retried
-#: on resume like an errored call — unlike `length`, which is the model's own
-#: trace hitting the cap and is real data about that model.
-ABORTED_BY_PROVIDER: Final[str] = "error"
 
 
 def is_collected(record: RolloutRecord) -> bool:

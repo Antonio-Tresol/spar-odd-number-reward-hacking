@@ -1,40 +1,22 @@
 """This project's own completion types, and the parsing that produces them.
 
-`Completion`, `TokenUsage` and `Routing` are what the rest of the package works
-with; a `ChatResult` never leaves this module. That is the whole point — the
-vendor's shapes stop here, so a change to them breaks one file rather than
-every call site.
+`Completion`, `TokenUsage` and `Routing` are what the rest of the package
+works with; a `ChatResult` never leaves this module, so a change in the
+vendor's shapes breaks one file rather than every call site.
 
-**Why this exists.** The code this replaces reached into SDK objects with
-`getattr(message, "content", None) or ""`. That is not defensive, it is
-destructive. The SDK is fully typed — `ChatResult.choices[0].message.content`
-is a real field on a real pydantic model — and `getattr` with a default throws
-that away in the worst possible direction: if the vendor renames `content`, the
-call does not fail, it returns `""`, and the run records hundreds of rollouts
-with empty responses that look exactly like refusals. A grader downstream then
-scores them. Silent data corruption is a far worse outcome than a crash, and a
-crash is what typed attribute access gives you for free.
+Rules at the boundary:
 
-So the rules here are:
+- Attribute access is direct and typed. No `getattr` with a default and no
+  `hasattr` dispatch: a renamed field must raise here, on the first call,
+  not come back as `""` and be graded as a refusal hundreds of times.
+- `isinstance` appears only to reject an unexpected shape, never to branch.
+- Fields the SDK declares optional are handled explicitly and told apart:
+  `content` is null on a refusal, `reasoning_details` absent on a
+  non-reasoning model.
 
-- **Attribute access is direct and typed.** No `getattr` with defaults, no
-  `hasattr` dispatch. A renamed field raises `AttributeError` at the boundary,
-  on the first call, before any budget is spent.
-- **`isinstance` appears only to reject, never to branch.** Validating that the
-  vendor handed us the shape we expect, and raising when it did not, is this
-  layer's job. Using it to quietly pick between two behaviours is what makes it
-  a smell.
-- **Genuinely optional fields are handled explicitly**, because the SDK declares
-  them optional. `content` really is nullable on a refusal; `reasoning_details`
-  really is absent on a non-reasoning model. Those are documented states, not
-  missing attributes, and they are distinguished from each other in the result.
-
-`openrouter_metadata` is the reason provenance is cheap. It is off by default
-and gated behind `x_open_router_metadata="enabled"` (see `client.py`); with it
-on, one response carries the served provider, the *dated* model actually routed
-to, the routing strategy, and the cost. Without it, `ChatResult.model` echoes
-the bare alias and there is no provider field at all — which is what previously
-forced a second, lagged API call per rollout.
+`openrouter_metadata` (served provider, dated model, routing, cost) is
+present only when the client sends `x_open_router_metadata="enabled"`; see
+`client.py`.
 """
 
 from __future__ import annotations

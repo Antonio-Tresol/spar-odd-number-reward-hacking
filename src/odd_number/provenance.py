@@ -1,22 +1,11 @@
 """Audit a results file: was every rollout served by what it claims?
 
-This module used to be much larger. It fetched `GET /generation?id=` once per
-rollout into an append-only sidecar, because the SDK's typed chat response drops
-the `provider` field and echoes the bare alias instead of the dated snapshot
-that was sent. That was true, and it cost an extra API call per rollout plus an
-indexing lag of roughly eight seconds before a generation became queryable.
-
-It was also avoidable. `x_open_router_metadata="enabled"` — off by default —
-makes the *same response* carry the served provider, the dated model actually
-routed to, the routing strategy, and the cost. `completions.py` reads it, and
-`rollouts.py` writes it straight into each rollout. So the fetch, the sidecar,
-and the resumable backfill pass are all gone, and what remains is what was
-always the interesting part: comparing what was pinned against what was served.
-
-The comparison stays a separate pass rather than an assertion inside the
-collection loop, for the reason it always was: one endpoint drifting mid-run is
-a fact about the run that belongs in the results, and discovering it should not
-destroy the rollouts collected either side of it.
+Each rollout records both the pin it was sent with and the provider and
+dated model OpenRouter reports having served (`openrouter_metadata`, read in
+`completions.py`); `audit_pins` compares the two. It is a separate pass
+rather than an assertion in the collection loop because an endpoint drifting
+mid-run is a fact about the run that belongs in the results, and discovering
+it should not destroy the rollouts collected either side of it.
 """
 
 from __future__ import annotations
@@ -28,7 +17,7 @@ from pathlib import Path
 from odd_number.completions import DIRECT_ROUTING
 from odd_number.rollouts import RolloutRecord, deduplicate_rollouts, read_rollouts
 
-_NON_ALNUM = re.compile(r"[^a-z0-9]")
+NON_ALPHANUMERIC = re.compile(r"[^a-z0-9]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +49,7 @@ def normalise_provider_key(name: str) -> str:
     reconciles every form observed live: deepinfra/DeepInfra, parasail/Parasail,
     akashml/AkashML, novita/Novita, open-inference/OpenInference.
     """
-    return _NON_ALNUM.sub("", name.split("/")[0].lower())
+    return NON_ALPHANUMERIC.sub("", name.split("/")[0].lower())
 
 
 def find_pin_mismatches(record: RolloutRecord) -> list[str]:

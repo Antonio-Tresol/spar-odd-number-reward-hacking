@@ -12,13 +12,11 @@ One CLI, one front door for the package:
     uv run odd-number grade results/<file>.jsonl --judge   # prose answers via the judge
     uv run odd-number validate-judge                # agreement on hand-labelled fixtures
 
-`collect` only accepts pinned models. That is a deliberate refusal
-rather than an omission: an unpinned run cannot be compared against a pinned
-one, so allowing a bare slug would let an incomparable results file into
-`results/` looking exactly like a comparable one.
+`collect` refuses models that are not pinned: an unpinned results file would
+look exactly like a pinned one and could not be compared with it.
 
-Argument parsing lives here and nowhere else; the other modules are importable
-library code with no side effects at import time.
+Argument parsing lives here and nowhere else; the other modules are
+importable library code with no side effects at import time.
 """
 
 from __future__ import annotations
