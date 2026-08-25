@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# Research-project pre-commit hook.
+#
+# Two parts, and the split is deliberate. Mechanical failures BLOCK, because they
+# are objective. Bookkeeping only REMINDS, because whether a run produced a belief
+# worth recording is a judgement. A hook that blocks on judgement gets bypassed
+# with --no-verify once and then ignored forever, taking the real failures with it.
+#
+# Install:  ./hooks/install.sh     Bypass once:  git commit --no-verify
+set -uo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+# --- Hard gate ------------------------------------------------------------
+if [[ -x ./check.sh ]]; then
+    if ! ./check.sh; then
+        echo
+        echo "pre-commit: checks failed. Fix them, or use --no-verify if you are"
+        echo "deliberately committing work in progress."
+        exit 1
+    fi
+fi
+
+# --- Reminders ------------------------------------------------------------
+staged="$(git diff --cached --name-only)"
+[[ -z "$staged" ]] && exit 0
+
+reminders=()
+note() { reminders+=("$1"); }
+has() { grep -qE "$1" <<<"$staged"; }
+list() { grep -E "$1" <<<"$staged" | head -3 | tr '\n' ' '; }
+
+if has '^(results|scripts|src)/' && ! has '^TREE\.md$'; then
+    note "Experiment code or results changed ($(list '^(results|scripts|src)/')) but TREE.md did not.
+    Does an experiment node move to [done], or has a claim appeared that needs recording?"
+fi
+
+if has '^results/' && ! has '^(RESEARCH_LOG|TREE)\.md$'; then
+    note "New or changed results ($(list '^results/')) with no tree or log update.
+    A null or inconclusive result still counts as a completed experiment."
+fi
+
+if has '^\.claude/skills/' && ! has '^(AGENTS\.md|README\.md)$'; then
+    note "A skill changed ($(list '^\.claude/skills/')).
+    Do AGENTS.md and the README still describe it correctly?"
+fi
+
+# Only worth raising when a result that already backs a recorded claim is being
+# rewritten. Firing whenever code and results move together would nag on the
+# modal correct commit, which teaches people to skim the whole block.
+# Compare against the COMMITTED tree, and only for results being MODIFIED: a new
+# result arriving with its new citation is ordinary work, not a claim at risk.
+committed_tree="$(git show HEAD:TREE.md 2>/dev/null || true)"
+if [[ -n "$committed_tree" ]]; then
+    while IFS= read -r artefact; do
+        [[ -z "$artefact" ]] && continue
+        if grep -qF "$artefact" <<<"$committed_tree"; then
+            note "$artefact already backs a claim in TREE.md and is being rewritten.
+    Re-run falsify or validate-claims for any claim resting on it."
+        fi
+    done < <(git diff --cached --name-only --diff-filter=M | grep -E '^results/' || true)
+fi
+
+# A document that carries an `updated:` date should have it bumped in the same
+# commit that changes the document. STALE-002 catches this later; here it is
+# still cheap to fix.
+while IFS= read -r doc; do
+    [[ -f "$doc" ]] || continue
+    # Frontmatter only: the file must open with --- and we stop at the closing ---.
+    head -1 "$doc" | grep -q '^---$' || continue
+    declared="$(sed -n '2,/^---$/p' "$doc" | sed -n 's/^updated:[[:space:]]*\([0-9-]\{10\}\).*/\1/p' | head -1)"
+    [[ -z "$declared" ]] && continue
+    if [[ "$declared" != "$(date +%F)" ]]; then
+        note "$doc says 'updated: $declared' but is changing today.
+    Bump it to $(date +%F) if the content now reflects newer data."
+    fi
+done < <(grep -E '\.md$' <<<"$staged" || true)
+
+if (( ${#reminders[@]} )); then
+    echo
+    echo "pre-commit: ${#reminders[@]} thing(s) worth checking before you finish."
+    echo "These do not block the commit."
+    for r in "${reminders[@]}"; do
+        echo "  - $r"
+    done
+fi
+
+exit 0

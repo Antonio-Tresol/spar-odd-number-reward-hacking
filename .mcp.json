@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "arxiv-mcp-server": {
+      "command": "arxiv-mcp-server",
+      "args": [
+        "--storage-path",
+        "data/papers"
+      ]
+    },
+    "paper-search-mcp": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--with",
+        "paper-search-mcp",
+        "python",
+        "-c",
+        "from paper_search_mcp.server import mcp; mcp.run()"
+      ]
+    }
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "skill_name": "derive-from-sources",
+  "queries": [
+    {
+      "query": "can you make me slides from these two papers? data/papers/2212.09251_discovering_lm_behaviors.pdf and data/papers/2310.13548_sycophancy.pdf",
+      "should_trigger": true
+    },
+    {
+      "query": "summarise https://arxiv.org/abs/2212.09251 and https://transformer-circuits.pub/2023/monosemantic-features for our tuesday reading group",
+      "should_trigger": true
+    },
+    {
+      "query": "my supervisor wants a one-page brief built from the three review docs in docs/reviews/ — can u do that",
+      "should_trigger": true
+    },
+    {
+      "query": "write the related-work section from paper_a.md and paper_b.md in refs/",
+      "should_trigger": true
+    },
+    {
+      "query": "turn the meeting transcripts in transcripts/ into an exec summary for people who missed it",
+      "should_trigger": true
+    },
+    {
+      "query": "I saved five blog posts about scaling laws in refs/ — synthesise their arguments into one document",
+      "should_trigger": true
+    },
+    {
+      "query": "lit review of these please: arXiv 2212.09251, arXiv 2404.01234, and the Apollo evals guide (link is in notes.md)",
+      "should_trigger": true
+    },
+    {
+      "query": "make a study guide from the lecture notes files in course/week3/ pls",
+      "should_trigger": true
+    },
+    {
+      "query": "here are 4 links about jailbreak evals — i need talking points for tomorrow's standup: https://example.com/a https://example.com/b https://example.com/c https://example.com/d",
+      "should_trigger": true
+    },
+    {
+      "query": "deck about eval awareness drawing on data/papers/eval_awareness_pilot.pdf and the two follow-ups in the same folder",
+      "should_trigger": true
+    },
+    {
+      "query": "summarise what you know about the Perez et al 2022 model-written evals paper",
+      "should_trigger": false
+    },
+    {
+      "query": "write slides introducing transformers to a beginner audience",
+      "should_trigger": false
+    },
+    {
+      "query": "can you review my draft summary in summary.md for clarity and tone",
+      "should_trigger": false
+    },
+    {
+      "query": "download these papers into data/papers/: 2212.09251 and 2109.07958",
+      "should_trigger": false
+    },
+    {
+      "query": "what does construct validity mean in the evals literature?",
+      "should_trigger": false
+    },
+    {
+      "query": "translate report.md into spanish",
+      "should_trigger": false
+    },
+    {
+      "query": "fix the formatting of the entries in references/harness.bib",
+      "should_trigger": false
+    },
+    {
+      "query": "search for recent papers on activation steering and give me the top five",
+      "should_trigger": false
+    },
+    {
+      "query": "write an abstract for our own findings in results/summary.json",
+      "should_trigger": false
+    },
+    {
+      "query": "proofread the paragraphs i wrote about the papers we read last week",
+      "should_trigger": false
+    }
+  ],
+  "workspace_files": {
+    "data/papers/2212.09251_discovering_lm_behaviors.pdf": "Discovering Language Model Behaviors with Model-Written Evaluations\nPerez et al., 2022 (arXiv:2212.09251)\n\nAbstract: As language models (LMs) scale, they develop many novel behaviors,\ngood and bad, exacerbating the need to evaluate how they behave. We automatically\ngenerate evaluations with LMs, creating 154 datasets testing behaviors related to\nsycophancy, sandbagging, and stated desires. We discover new cases of inverse\nscaling where LMs get worse with size, and instances where RLHF makes models\nexpress stronger political views. Overall, LM-written evaluations are high\nquality and let us quickly discover many novel LM behaviors.\n",
+    "data/papers/2310.13548_sycophancy.pdf": "Towards Understanding Sycophancy in Language Models\nSharma et al., 2023 (arXiv:2310.13548)\n\nAbstract: Human feedback is commonly utilized to finetune AI assistants, but it\nmay also encourage model responses that match user beliefs over truthful ones, a\nbehavior known as sycophancy. We investigate the prevalence of sycophancy in\nmodels whose finetuning procedure made use of human feedback. We find that five\nstate-of-the-art AI assistants consistently exhibit sycophancy across four varied\nfree-form text-generation tasks. Our results indicate that sycophancy is a\ngeneral behavior of these models, likely driven in part by human preference\njudgments favoring sycophantic responses.\n",
+    "docs/reviews/review_alpha.md": "# Review 1: evaluation methodology\n\nReviewer notes (internal, week of 2026-07-13).\n\nSummary: This review covers evaluation methodology across the recent literature. The main\nstrengths are careful operationalization and reproducible pipelines. The main\nweaknesses are small sample sizes and a reliance on single-model results.\n\nKey points:\n- Construct validity is under-argued in most cited works.\n- Effect sizes are rarely reported with confidence intervals.\n- Recommendation: replicate the two headline results before citing them.\n",
+    "docs/reviews/review_beta.md": "# Review 2: interpretability probes\n\nReviewer notes (internal, week of 2026-07-13).\n\nSummary: This review covers interpretability probes across the recent literature. The main\nstrengths are careful operationalization and reproducible pipelines. The main\nweaknesses are small sample sizes and a reliance on single-model results.\n\nKey points:\n- Construct validity is under-argued in most cited works.\n- Effect sizes are rarely reported with confidence intervals.\n- Recommendation: replicate the two headline results before citing them.\n",
+    "docs/reviews/review_gamma.md": "# Review 3: benchmark contamination\n\nReviewer notes (internal, week of 2026-07-13).\n\nSummary: This review covers benchmark contamination across the recent literature. The main\nstrengths are careful operationalization and reproducible pipelines. The main\nweaknesses are small sample sizes and a reliance on single-model results.\n\nKey points:\n- Construct validity is under-argued in most cited works.\n- Effect sizes are rarely reported with confidence intervals.\n- Recommendation: replicate the two headline results before citing them.\n",
+    "refs/paper_a.md": "# Paper A: sycophancy measurement\n\nNotes on sycophancy measurement (working copy for the related-work section).\n\nMain claim: sycophancy measurement can be measured reliably with model-written test items,\nprovided quality control filters remove ambiguous items.\n\nMethod: 2,000 generated items, filtered to 900 by an LLM judge plus human\nspot-checks (kappa = 0.81). Evaluated on two open-weight models.\n\nResult: The measured effect is stable across paraphrases (r = 0.88) but\nsensitive to option ordering, suggesting position bias needs explicit controls.\n",
+    "refs/paper_b.md": "# Paper B: eval awareness\n\nNotes on eval awareness (working copy for the related-work section).\n\nMain claim: eval awareness can be measured reliably with model-written test items,\nprovided quality control filters remove ambiguous items.\n\nMethod: 2,000 generated items, filtered to 900 by an LLM judge plus human\nspot-checks (kappa = 0.81). Evaluated on two open-weight models.\n\nResult: The measured effect is stable across paraphrases (r = 0.88) but\nsensitive to option ordering, suggesting position bias needs explicit controls.\n",
+    "transcripts/2026-07-13_team_meeting.md": "# Meeting transcript — 2026-07-13\n\nAttendees: A. Rivera, J. Chen, M. Okafor\n\n[00:02] Rivera: Quick recap — the eval-awareness pilot is the priority this week.\n[00:05] Chen: The pilot numbers look stable; AUROC held at 0.74 on the rerun.\n[00:09] Okafor: I still want a base-rate check before we present anything.\n[00:14] Rivera: Agreed. Action items: Chen reruns with fixed seeds, Okafor\ndrafts the falsification plan, I book the review slot for Friday.\n[00:16] Chen: One risk — the dataset licence needs checking before release.\n[00:18] Rivera: Noted. Same time Thursday.\n",
+    "transcripts/2026-07-15_planning.md": "# Meeting transcript — 2026-07-15\n\nAttendees: A. Rivera, J. Chen, M. Okafor\n\n[00:02] Rivera: Quick recap — the falsification sprint is the priority this week.\n[00:05] Chen: The pilot numbers look stable; AUROC held at 0.74 on the rerun.\n[00:09] Okafor: I still want a base-rate check before we present anything.\n[00:14] Rivera: Agreed. Action items: Chen reruns with fixed seeds, Okafor\ndrafts the falsification plan, I book the review slot for Friday.\n[00:16] Chen: One risk — the dataset licence needs checking before release.\n[00:18] Rivera: Noted. Same time Thursday.\n",
+    "refs/scaling_post_1.md": "# Scaling laws blog post 1: compute-optimal training is misunderstood\n\nSaved from the web, 2026-07-10.\n\nThis post argues that compute-optimal training is misunderstood. The author walks through the Chinchilla\ncompute-optimal framing, then claims that data quality shifts the exponent\nmore than most replications assume.\n\nKey argument: loss curves alone under-determine the story; downstream task\nscaling can diverge from loss scaling by a wide margin.\n\nTakeaway: treat published scaling exponents as dataset-specific, not universal.\n",
+    "refs/scaling_post_2.md": "# Scaling laws blog post 2: data quality dominates parameter count\n\nSaved from the web, 2026-07-10.\n\nThis post argues that data quality dominates parameter count. The author walks through the Chinchilla\ncompute-optimal framing, then claims that data quality shifts the exponent\nmore than most replications assume.\n\nKey argument: loss curves alone under-determine the story; downstream task\nscaling can diverge from loss scaling by a wide margin.\n\nTakeaway: treat published scaling exponents as dataset-specific, not universal.\n",
+    "refs/scaling_post_3.md": "# Scaling laws blog post 3: emergent abilities are a measurement artifact\n\nSaved from the web, 2026-07-10.\n\nThis post argues that emergent abilities are a measurement artifact. The author walks through the Chinchilla\ncompute-optimal framing, then claims that data quality shifts the exponent\nmore than most replications assume.\n\nKey argument: loss curves alone under-determine the story; downstream task\nscaling can diverge from loss scaling by a wide margin.\n\nTakeaway: treat published scaling exponents as dataset-specific, not universal.\n",
+    "refs/scaling_post_4.md": "# Scaling laws blog post 4: inference-time scaling changes the tradeoff\n\nSaved from the web, 2026-07-10.\n\nThis post argues that inference-time scaling changes the tradeoff. The author walks through the Chinchilla\ncompute-optimal framing, then claims that data quality shifts the exponent\nmore than most replications assume.\n\nKey argument: loss curves alone under-determine the story; downstream task\nscaling can diverge from loss scaling by a wide margin.\n\nTakeaway: treat published scaling exponents as dataset-specific, not universal.\n",
+    "refs/scaling_post_5.md": "# Scaling laws blog post 5: scaling exponents are dataset-specific\n\nSaved from the web, 2026-07-10.\n\nThis post argues that scaling exponents are dataset-specific. The author walks through the Chinchilla\ncompute-optimal framing, then claims that data quality shifts the exponent\nmore than most replications assume.\n\nKey argument: loss curves alone under-determine the story; downstream task\nscaling can diverge from loss scaling by a wide margin.\n\nTakeaway: treat published scaling exponents as dataset-specific, not universal.\n",
+    "notes.md": "# Reading notes\n\nPapers queued for the lit review:\n\n- arXiv 2212.09251 (model-written evals)\n- arXiv 2404.01234 (follow-up)\n- Apollo evals guide: https://www.apolloresearch.ai/blog/evals-guide\n\nRemember to check the guide's section on capability vs alignment evals.\n",
+    "course/week3/lecture_1_experiment_design.md": "# Week 3, lecture 1: experiment design\n\nCourse notes (student copy).\n\nToday we covered experiment design. The three things to remember:\n\n1. Definitions first — every metric must have an operational definition.\n2. Controls — a result without a null comparison is an anecdote.\n3. Replication — fixed seeds and pinned versions, or it did not happen.\n\nReading for next session: chapter 4, sections 1-3.\n",
+    "course/week3/lecture_2_statistics.md": "# Week 3, lecture 2: statistics for evals\n\nCourse notes (student copy).\n\nToday we covered statistics for evals. The three things to remember:\n\n1. Definitions first — every metric must have an operational definition.\n2. Controls — a result without a null comparison is an anecdote.\n3. Replication — fixed seeds and pinned versions, or it did not happen.\n\nReading for next session: chapter 4, sections 1-3.\n",
+    "course/week3/lecture_3_reporting.md": "# Week 3, lecture 3: honest reporting\n\nCourse notes (student copy).\n\nToday we covered honest reporting. The three things to remember:\n\n1. Definitions first — every metric must have an operational definition.\n2. Controls — a result without a null comparison is an anecdote.\n3. Replication — fixed seeds and pinned versions, or it did not happen.\n\nReading for next session: chapter 4, sections 1-3.\n",
+    "data/papers/eval_awareness_pilot.pdf": "Eval-Awareness Pilot Study\nInternal draft, 2026\n\nAbstract: We test whether frontier models can distinguish evaluation contexts\nfrom deployment contexts. Across 400 paired prompts, a linear probe on residual\nactivations separates eval-style from deployment-style inputs with AUROC 0.74.\nBehavioral detectors based on self-report underperform the probe (AUROC 0.58).\nWe discuss implications for benchmark validity and sandbagging detection, and\nrelease the paired-prompt dataset for replication.\n",
+    "data/papers/eval_awareness_followup_probe_generalization.pdf": "Eval-Awareness Follow-up 1: Probe Generalization\nInternal draft, 2026\n\nAbstract: We extend the pilot probe to three held-out model families. Transfer\nAUROC drops to 0.61, suggesting the pilot direction is partly model-specific.\nA shared subspace across families retains AUROC 0.66. We recommend per-family\ncalibration before any deployment monitoring use.\n",
+    "data/papers/eval_awareness_followup_behavioral_consistency.pdf": "Eval-Awareness Follow-up 2: Behavioral Consistency\nInternal draft, 2026\n\nAbstract: We measure whether eval-aware models change their behavior when the\nprobe indicates awareness. Refusal rates shift by 4.2 percentage points in\nflagged contexts (95% CI [1.8, 6.6]). The effect is small but robust to prompt\nparaphrase controls, and vanishes under a random-direction control.\n",
+    "summary.md": "# Draft summary: activation steering results\n\nWe steered the model along the refusal axis and saw refusal rates\nincrease monotonically with steering strength. The effect was there\non both harmful and harmless prompts, which suggests that the axis\ncaptures something more like caution than harm detection.\n\nOverall we think these results are pretty solid but the writing here\nis rough and could use a clarity pass before it goes to the group.\n",
+    "report.md": "# Q2 progress report\n\nThe pilot ran to completion with fixed seeds. The probe reached\nAUROC 0.74 on held-out prompts, beating the self-report baseline\n(0.58). Next step is the falsification pass: permutation nulls and\na random-direction control.\n\nRisks: dataset licence unverified; one model family untested.\n",
+    "references/harness.bib": "@article{perez2022discovering,\n  title   = {Discovering Language Model Behaviors with Model-Written Evaluations},\n  author  = {Perez, Ethan and others},\n  journal = {arXiv preprint arXiv:2212.09251},\n  year    = {2022},\n}\n\n@article{sharma2023sycophancy,\ntitle={Towards Understanding Sycophancy in Language Models},\nauthor={Sharma, Mrinank and others},\njournal={arXiv preprint arXiv:2310.13548}, year={2023}}\n",
+    "results/summary.json": "{\n  \"experiment\": \"Q1.H1.E1 pilot\",\n  \"n_items\": 200,\n  \"probe_auroc\": 0.74,\n  \"baseline_auroc\": 0.58,\n  \"bootstrap_ci_95\": [\n    0.69,\n    0.79\n  ],\n  \"seeds\": [\n    0,\n    1,\n    2\n  ],\n  \"notes\": \"Null on behavioral self-report detector; probe survives permutation test.\"\n}\n",
+    "drafts/paper_paragraphs.md": "# Paragraphs on last week's readings\n\nThe Perez et al. paper showd that models can write there own evals,\nwhich is usefull because it scales. However the quality controll step\nmatters alot, since generated items can be ambigous.\n\nThe sycophancy paper find that assistants agree with users to much,\neven when the user is rong. This seem driven by preference data.\n"
+  }
+}

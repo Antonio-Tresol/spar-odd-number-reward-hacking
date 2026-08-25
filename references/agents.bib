@@ -1,0 +1,304 @@
+% Evidence base for the "domain-specific AI research agents" survey.
+% Companion to references/harness.bib; no entry is duplicated between the two.
+% Every entry was fetched and read during the survey at the depth recorded in
+% research/research-agents/sources.md. The arXiv ID / DOI / URL is the
+% authoritative, unequivocal identifier -- resolve by ID, not by title string.
+% A `note` field flags any entry whose title or author list I could not fully
+% verify, or whose read depth was partial.
+
+% ---------- Category 1: AI R&D / ML-engineering agents ----------
+
+@article{wijk2024rebench,
+  title   = {RE-Bench: Evaluating frontier AI R\&D capabilities of language model agents against human experts},
+  author  = {Wijk, Hjalmar and Lin, Tao and Becker, Joel and Jawhar, Sami and Parikh, Neev and Broadley, Thomas and Chan, Lawrence and Chen, Michael and Clymer, Josh and Dhyani, Jai and Ericheva, Elena and Garcia, Katharyn and Goodrich, Brian and Jurkovic, Nikola and Karnofsky, Holden and Kinniment, Megan and Lajko, Aron and Nix, Seraphina and Sato, Lucas and Saunders, William and Taran, Maksym and West, Ben and Barnes, Elizabeth},
+  year    = {2024},
+  eprint  = {2411.15114},
+  doi     = {10.48550/arXiv.2411.15114},
+  url     = {https://arxiv.org/abs/2411.15114},
+  note    = {METR. Title and full author list verified against arXiv metadata}
+}
+
+@article{kwa2025timehorizons,
+  title   = {Measuring AI Ability to Complete Long Software Tasks},
+  author  = {Kwa, Thomas and West, Ben and Becker, Joel and Deng, Amy and Garcia, Katharyn and Hasin, Max and Jawhar, Sami and Kinniment, Megan and Rush, Nate and Von Arx, Sydney and Bloom, Ryan and Broadley, Thomas and Du, Haoxing and Goodrich, Brian and Jurkovic, Nikola and Miles, Luke Harold and Nix, Seraphina and Lin, Tao and Painter, Chris and Parikh, Neev and Rein, David and Sato, Lucas Jun Koba and Wijk, Hjalmar and Ziegler, Daniel M. and Barnes, Elizabeth and Chan, Lawrence},
+  year    = {2025},
+  eprint  = {2503.14499},
+  doi     = {10.48550/arXiv.2503.14499},
+  url     = {https://arxiv.org/abs/2503.14499},
+  note    = {METR. TITLE CAUTION: arXiv metadata as fetched (v4) reads "Measuring AI Ability to Complete Long Software Tasks"; the work is widely cited under the earlier title "Measuring AI Ability to Complete Long Tasks". Resolve by arXiv ID. Source of the 50\%-task-completion time-horizon metric}
+}
+
+@article{chan2024mlebench,
+  title   = {MLE-bench: Evaluating Machine Learning Agents on Machine Learning Engineering},
+  author  = {Chan, Jun Shern and Chowdhury, Neil and Jaffe, Oliver and Aung, James and Sherburn, Dane and Mays, Evan and Starace, Giulio and Liu, Kevin and Maksin, Leon and Patwardhan, Tejal and Weng, Lilian and M{\k{a}}dry, Aleksander},
+  year    = {2024},
+  eprint  = {2410.07095},
+  doi     = {10.48550/arXiv.2410.07095},
+  url     = {https://arxiv.org/abs/2410.07095},
+  note    = {OpenAI. Code at https://github.com/openai/mle-bench/}
+}
+
+@article{huang2023mlagentbench,
+  title   = {MLAgentBench: Evaluating Language Agents on Machine Learning Experimentation},
+  author  = {Huang, Qian and Vora, Jian and Liang, Percy and Leskovec, Jure},
+  year    = {2023},
+  eprint  = {2310.03302},
+  doi     = {10.48550/arXiv.2310.03302},
+  url     = {https://arxiv.org/abs/2310.03302},
+  note    = {Source of the contamination signal: 100\% success on older datasets vs 0\% on post-cutoff Kaggle challenges}
+}
+
+@article{starace2025paperbench,
+  title   = {PaperBench: Evaluating AI's Ability to Replicate AI Research},
+  author  = {Starace, Giulio and Jaffe, Oliver and Sherburn, Dane and Aung, James and Chan, Jun Shern and Maksin, Leon and Dias, Rachel and Mays, Evan and Kinsella, Benjamin and Thompson, Wyatt and Heidecke, Johannes and Glaese, Amelia and Patwardhan, Tejal},
+  year    = {2025},
+  eprint  = {2504.01848},
+  doi     = {10.48550/arXiv.2504.01848},
+  url     = {https://arxiv.org/abs/2504.01848},
+  note    = {OpenAI. Source of the "separate benchmark for judges" practice}
+}
+
+@article{wei2025humanbaselines,
+  title   = {Recommendations and Reporting Checklist for Rigorous \& Transparent Human Baselines in Model Evaluations},
+  author  = {Wei, Kevin L. and Paskov, Patricia and Dev, Sunishchal and Byun, Michael J. and Reuel, Anka and Roberts-Gaal, Xavier and Calcott, Rachel and Coxon, Evie and Deshpande, Chinmay},
+  year    = {2025},
+  eprint  = {2506.13776},
+  doi     = {10.48550/arXiv.2506.13776},
+  url     = {https://arxiv.org/abs/2506.13776},
+  note    = {Data at https://github.com/kevinlwei/human-baselines}
+}
+
+% ---------- Category 2: Interpretability agents ----------
+
+@misc{bills2023language,
+  title        = {Language models can explain neurons in language models},
+  author       = {Bills, Steven and Cammarata, Nick and Mossing, Dan and Tillman, Henk and Gao, Leo and Goh, Gabriel and Sutskever, Ilya and Leike, Jan and Wu, Jeff and Saunders, William},
+  year         = {2023},
+  howpublished = {\url{https://openaipublic.blob.core.windows.net/neuron-explainer/paper/index.html}},
+  note         = {OpenAI, published 2023-05-09. Title, author list and this BibTeX form are transcribed from the paper page's own citation block. READ-DEPTH CAUTION: the page body is JavaScript-rendered and could not be read during the survey (the openai.com mirror returns HTTP 403); only the title, authors, date, section structure and contributions statement were readable. No quantitative claim is made from this source. Origin of the explain-simulate-score auto-interpretability pipeline}
+}
+
+@article{rottshaham2024maia,
+  title   = {A Multimodal Automated Interpretability Agent},
+  author  = {Rott Shaham, Tamar and Schwettmann, Sarah and Wang, Franklin and Rajaram, Achyuta and Hernandez, Evan and Andreas, Jacob and Torralba, Antonio},
+  year    = {2024},
+  eprint  = {2404.14394},
+  doi     = {10.48550/arXiv.2404.14394},
+  url     = {https://arxiv.org/abs/2404.14394},
+  note    = {MAIA. Validated against synthetic vision neurons with paired ground-truth descriptions}
+}
+
+@article{conmy2023acdc,
+  title   = {Towards Automated Circuit Discovery for Mechanistic Interpretability},
+  author  = {Conmy, Arthur and Mavor-Parker, Augustine N. and Lynch, Aengus and Heimersheim, Stefan and Garriga-Alonso, Adri{\`a}},
+  year    = {2023},
+  eprint  = {2304.14997},
+  doi     = {10.48550/arXiv.2304.14997},
+  url     = {https://arxiv.org/abs/2304.14997},
+  note    = {ACDC. Code at https://github.com/ArthurConmy/Automatic-Circuit-Discovery. Source of the rediscover-a-known-answer validation pattern (5/5 component types; 68 of 32,000 edges)}
+}
+
+@article{marks2025auditing,
+  title   = {Auditing language models for hidden objectives},
+  author  = {Marks, Samuel and Treutlein, Johannes and Bricken, Trenton and Lindsey, Jack and Marcus, Jonathan and Mishra-Sharma, Siddharth and Ziegler, Daniel and Ameisen, Emmanuel and Batson, Joshua and Belonax, Tim and Bowman, Samuel R. and Carter, Shan and Chen, Brian and Cunningham, Hoagy and Denison, Carson and Dietz, Florian and Golechha, Satvik and Khan, Akbir and Kirchner, Jan and Leike, Jan and Meek, Austin and Nishimura-Gasparian, Kei and Ong, Euan and Olah, Christopher and Pearce, Adam and Roger, Fabien and Salle, Jeanne and Shih, Andy and Tong, Meg and Thomas, Drake and Rivoire, Kelley and Jermyn, Adam and MacDiarmid, Monte and Henighan, Tom and Hubinger, Evan},
+  year    = {2025},
+  eprint  = {2503.10965},
+  doi     = {10.48550/arXiv.2503.10965},
+  url     = {https://arxiv.org/abs/2503.10965},
+  note    = {Anthropic. The blind auditing game; 3 of 4 teams recovered the planted hidden objective}
+}
+
+@misc{bricken2025auditingagents,
+  title        = {Building and evaluating alignment auditing agents},
+  author       = {{Anthropic Alignment Science}},
+  year         = {2025},
+  howpublished = {\url{https://alignment.anthropic.com/2025/automated-auditing/}},
+  note         = {Read at blog depth. Individual author list was NOT verified from the fetched page; attributed here to the publishing team. Source of the 13\% / 42\% super-agent solve rates, the 88\% evaluation-agent discrimination rate, 7/10 red-teaming discovery, and the named "fixating on early hypotheses" failure mode}
+}
+
+@article{sheshadri2026auditbench,
+  title   = {AuditBench: Evaluating Alignment Auditing Techniques on Models with Hidden Behaviors},
+  author  = {Sheshadri, Abhay and Ewart, Aidan and Fronsdal, Kai and Gupta, Isha and Bowman, Samuel R. and Price, Sara and Marks, Samuel and Wang, Rowan},
+  year    = {2026},
+  eprint  = {2602.22755},
+  doi     = {10.48550/arXiv.2602.22755},
+  url     = {https://arxiv.org/abs/2602.22755},
+  note    = {Source of the tool-to-agent gap finding}
+}
+
+@article{mccann2026collision,
+  title   = {Descriptive Collision in Sparse Autoencoder Auto-Interpretability: When One Explanation Describes Many Features},
+  author  = {McCann, Jordan F.},
+  year    = {2026},
+  eprint  = {2605.12874},
+  doi     = {10.48550/arXiv.2605.12874},
+  url     = {https://arxiv.org/abs/2605.12874},
+  note    = {Proves detection-style auto-interp scoring is invariant to descriptive collision; the primary source for the harness's proposed discrimination check}
+}
+
+@article{paulo2025saeinterp,
+  title   = {Evaluating SAE interpretability without explanations},
+  author  = {Paulo, Gon{\c{c}}alo and Belrose, Nora},
+  year    = {2025},
+  eprint  = {2507.08473},
+  doi     = {10.48550/arXiv.2507.08473},
+  url     = {https://arxiv.org/abs/2507.08473}
+}
+
+@article{gao2024scalingsae,
+  title   = {Scaling and evaluating sparse autoencoders},
+  author  = {Gao, Leo and Dupr{\'e} la Tour, Tom and Tillman, Henk and Goh, Gabriel and Troll, Rajan and Radford, Alec and Sutskever, Ilya and Leike, Jan and Wu, Jeffrey},
+  year    = {2024},
+  eprint  = {2406.04093},
+  doi     = {10.48550/arXiv.2406.04093},
+  url     = {https://arxiv.org/abs/2406.04093},
+  note    = {OpenAI. Source of the three-axis feature-quality metric suite (hypothesised-feature recovery, explainability, downstream-effect sparsity)}
+}
+
+@article{marks2024sparsefeaturecircuits,
+  title   = {Sparse Feature Circuits: Discovering and Editing Interpretable Causal Graphs in Language Models},
+  author  = {Marks, Samuel and Rager, Can and Michaud, Eric J. and Belinkov, Yonatan and Bau, David and Mueller, Aaron},
+  year    = {2024},
+  eprint  = {2403.19647},
+  doi     = {10.48550/arXiv.2403.19647},
+  url     = {https://arxiv.org/abs/2403.19647},
+  note    = {Introduces SHIFT: validating an interpretation by a downstream causal ablation}
+}
+
+% ---------- Category 3: Red-teaming / adversarial agents ----------
+
+@article{perez2022redteaming,
+  title   = {Red Teaming Language Models with Language Models},
+  author  = {Perez, Ethan and Huang, Saffron and Song, Francis and Cai, Trevor and Ring, Roman and Aslanides, John and Glaese, Amelia and McAleese, Nat and Irving, Geoffrey},
+  year    = {2022},
+  eprint  = {2202.03286},
+  doi     = {10.48550/arXiv.2202.03286},
+  url     = {https://arxiv.org/abs/2202.03286},
+  note    = {DeepMind. Distinct from the Perez et al. model-written-evaluations entry in harness.bib (arXiv:2212.09251)}
+}
+
+@article{hong2024curiosityredteam,
+  title   = {Curiosity-driven Red-teaming for Large Language Models},
+  author  = {Hong, Zhang-Wei and Shenfeld, Idan and Wang, Tsun-Hsuan and Chuang, Yung-Sung and Pareja, Aldo and Glass, James and Srivastava, Akash and Agrawal, Pulkit},
+  year    = {2024},
+  eprint  = {2402.19464},
+  doi     = {10.48550/arXiv.2402.19464},
+  url     = {https://arxiv.org/abs/2402.19464},
+  note    = {Code at https://github.com/Improbable-AI/curiosity_redteam. Source of the RL-red-teamer mode-collapse / low-coverage finding}
+}
+
+@misc{anthropic2025petri,
+  title        = {Petri: An open-source auditing tool to accelerate AI safety research},
+  author       = {{Anthropic}},
+  year         = {2025},
+  howpublished = {\url{https://www.anthropic.com/research/petri-open-source-auditing}},
+  note         = {Read at blog depth. TITLE CAUTION: the exact page title was not captured verbatim during the fetch; resolve by URL. Petri = Parallel Exploration Tool for Risky Interactions. Source of the auditor/target/judge architecture and the authors' own "metrics are inherently reductive / read the transcripts" caveat}
+}
+
+@article{li2025investigatoragents,
+  title   = {Eliciting Language Model Behaviors with Investigator Agents},
+  author  = {Li, Xiang Lisa and Chowdhury, Neil and Johnson, Daniel D. and Hashimoto, Tatsunori and Liang, Percy and Schwettmann, Sarah and Steinhardt, Jacob},
+  year    = {2025},
+  eprint  = {2502.01236},
+  doi     = {10.48550/arXiv.2502.01236},
+  url     = {https://arxiv.org/abs/2502.01236},
+  note    = {Transluce. The only Transluce work cited here from a primary abstract; Docent was not readable at the depth required to describe it}
+}
+
+@article{souly2024strongreject,
+  title   = {A StrongREJECT for Empty Jailbreaks},
+  author  = {Souly, Alexandra and Lu, Qingyuan and Bowen, Dillon and Trinh, Tu and Hsieh, Elvis and Pandey, Sana and Abbeel, Pieter and Svegliato, Justin and Emmons, Scott and Watkins, Olivia and Toyer, Sam},
+  year    = {2024},
+  eprint  = {2402.10260},
+  doi     = {10.48550/arXiv.2402.10260},
+  url     = {https://arxiv.org/abs/2402.10260},
+  note    = {Source of the directional-overstatement finding and the capability-degradation confound}
+}
+
+@article{chao2024jailbreakbench,
+  title   = {JailbreakBench: An Open Robustness Benchmark for Jailbreaking Large Language Models},
+  author  = {Chao, Patrick and Debenedetti, Edoardo and Robey, Alexander and Andriushchenko, Maksym and Croce, Francesco and Sehwag, Vikash and Dobriban, Edgar and Flammarion, Nicolas and Pappas, George J. and Tramer, Florian and Hassani, Hamed and Wong, Eric},
+  year    = {2024},
+  eprint  = {2404.01318},
+  doi     = {10.48550/arXiv.2404.01318},
+  url     = {https://arxiv.org/abs/2404.01318}
+}
+
+@article{maple2026distributionalasr,
+  title   = {Single-Configuration Attack Success Rate Is Not Enough: Jailbreak Evaluations Should Report Distributional Attack Success},
+  author  = {Maple, Carsten and Kumar, Abhishek and Tapwal, Riya},
+  year    = {2026},
+  eprint  = {2605.09070},
+  doi     = {10.48550/arXiv.2605.09070},
+  url     = {https://arxiv.org/abs/2605.09070},
+  note    = {Introduces the Variant Sensitivity Measure (VSM) and Union Coverage (UC); the primary source for the harness's proposed distributional-reporting rule}
+}
+
+@article{andriushchenko2024adaptiveattacks,
+  title   = {Jailbreaking Leading Safety-Aligned LLMs with Simple Adaptive Attacks},
+  author  = {Andriushchenko, Maksym and Croce, Francesco and Flammarion, Nicolas},
+  year    = {2024},
+  eprint  = {2404.02151},
+  doi     = {10.48550/arXiv.2404.02151},
+  url     = {https://arxiv.org/abs/2404.02151},
+  note    = {Artifacts at https://github.com/tml-epfl/llm-adaptive-attacks}
+}
+
+@article{lindner2026gram,
+  title   = {Gram: Assessing sabotage propensities via automated alignment auditing},
+  author  = {Lindner, David and Krakovna, Victoria and Farquhar, Sebastian},
+  year    = {2026},
+  eprint  = {2605.30322},
+  doi     = {10.48550/arXiv.2605.30322},
+  url     = {https://arxiv.org/abs/2605.30322},
+  note    = {Google DeepMind. Source of the demand-characteristics finding: removing nudges and raising realism drove sabotage rates close to zero}
+}
+
+% ---------- Category 4: Evals agents and meta-evaluation ----------
+
+@article{zhu2025abc,
+  title   = {Establishing Best Practices for Building Rigorous Agentic Benchmarks},
+  author  = {Zhu, Yuxuan and Jin, Tengjun and Pruksachatkun, Yada and Zhang, Andy and Liu, Shu and Cui, Sasha and Kapoor, Sayash and Longpre, Shayne and Meng, Kevin and Weiss, Rebecca and Barez, Fazl and Gupta, Rahul and Dhamala, Jwala and Merizian, Jacob and Giulianelli, Mario and Coppock, Harry and Ududec, Cozmin and Sekhon, Jasjeet and Steinhardt, Jacob and Kellermann, Antony and Schwettmann, Sarah and Zaharia, Matei and Stoica, Ion and Liang, Percy and Kang, Daniel},
+  year    = {2025},
+  eprint  = {2507.02825},
+  doi     = {10.48550/arXiv.2507.02825},
+  url     = {https://arxiv.org/abs/2507.02825},
+  note    = {The Agentic Benchmark Checklist (ABC). Read at abstract depth plus an AlphaXiv AI-generated overview; the trivial-agent exploit figures (tau-bench 38\%/40\%, SWE-Lancer 100\%, KernelBench ~31\%, OSWorld 13/46) come from that overview and are recorded as findings, not verbatim quotes}
+}
+
+@misc{aisi2024inspect,
+  title        = {Inspect: An open-source framework for large language model evaluations},
+  author       = {{UK AI Security Institute and Meridian Labs}},
+  howpublished = {\url{https://inspect.aisi.org.uk/}},
+  note         = {Read at documentation depth. Title paraphrases the site's own self-description; no publication year is asserted. Source of the dataset/solver/scorer/agent/log-viewer decomposition}
+}
+
+@article{santosgrueiro2026verifiability,
+  title   = {Alignment Verifiability in Large Language Models: Normative Indistinguishability under Behavioral Evaluation},
+  author  = {Santos-Grueiro, Igor},
+  year    = {2026},
+  eprint  = {2602.05656},
+  doi     = {10.48550/arXiv.2602.05656},
+  url     = {https://arxiv.org/abs/2602.05656},
+  note    = {Formalises evaluation awareness and proves a conditional impossibility result for behavioural evals}
+}
+
+@article{freiesleben2025benchmarkingepistemology,
+  title   = {The Benchmarking Epistemology: Construct Validity for Evaluating Machine Learning Models},
+  author  = {Freiesleben, Timo and Zezulka, Sebastian},
+  year    = {2025},
+  eprint  = {2510.23191},
+  doi     = {10.48550/arXiv.2510.23191},
+  url     = {https://arxiv.org/abs/2510.23191},
+  note    = {Grounding citation for the eval-design construct-validity checklist}
+}
+
+@article{egler2025finetuningauditor,
+  title   = {Detecting Adversarial Fine-tuning with Auditing Agents},
+  author  = {Egler, Sarah and Schulman, John and Carlini, Nicholas},
+  year    = {2025},
+  eprint  = {2510.16255},
+  doi     = {10.48550/arXiv.2510.16255},
+  url     = {https://arxiv.org/abs/2510.16255},
+  note    = {Agent at https://github.com/safety-research/finetuning-auditor. Model for reporting detection rate at a stated false-positive rate with benign negatives}
+}

@@ -1,0 +1,91 @@
+# Executable standards for a research project.  Run: uvx lanorme check .
+#
+# All rules are enabled. In practice the production-application rules (hexagonal
+# layers, auth on mutation endpoints, a test partner per module, AAA-structured
+# tests) do not fire on a research layout — they need directories and patterns a
+# research project does not have — so there is nothing to disable up front. A
+# fresh install reports only the TYPE-001 warning ignored below.
+#
+# The rules that DO earn their place here:
+#
+#   SKILL-001..006  a malformed SKILL.md silently fails to load, and skills are
+#                   shared between teammates and machines.
+#   COMPLEXITY/SIZE the documented AI-scientist failure mode "false performance
+#                   gains from buggy code" (see research/ai-scientist-pitfalls/)
+#                   lives in exactly the long, high-complexity analysis function
+#                   nobody can review.
+#   secrets         model-provider API keys in a research script are a common leak.
+#   DRY-001         copy-pasted analysis that drifts is how two "independent"
+#                   results quietly become one.
+#   JUNK-001/002    keeps results/ and notes/ readable as an evidence trail.
+#
+# FORMAT: keys are TOP-LEVEL here. The [tool.lanorme] table form is only for
+# pyproject.toml — using it in this file parses fine and applies nothing.
+#
+# If a rule starts fighting the work rather than catching mistakes, add its ID
+# to `ignore` with a one-line reason — the way this file documents its own
+# choice. Silent suppression is the thing to avoid, not suppression itself.
+
+plugins = [
+    "lanorme_plugins.tensors",
+    "lanorme_plugins.skill_portability",
+    "lanorme_plugins.provenance",
+    "lanorme_plugins.staleness",
+]
+
+select = ["ALL"]
+
+ignore = [
+    # Parsed YAML/JSON at an I/O boundary is genuinely untyped — dict[str, object]
+    # is the honest annotation, not a placeholder for a missing domain type.
+    "TYPE-001",
+    # Reference implementations import torch lazily so they stay runnable and
+    # lintable on a machine with no GPU.
+    "IMPORT-001",
+]
+
+exclude = [
+    # Exploratory code is EXEMPT BY DESIGN. Most research work is de-risking in
+    # notebooks and throwaway scripts, where time-to-insight is the only metric
+    # that matters and polish is deferred on purpose (see the experiment-engineering
+    # skill's two-mode table). Linting this code would tax exactly the phase that
+    # should be cheapest. Quality gates apply at PROMOTION — when code moves to
+    # scripts/ or src/ because a claim will rest on it or someone else must run it.
+    #
+    # Note this exempts POLISH, not correctness: the observability contract
+    # (structured logs, resumable checkpoints, seeds, shuffling) still applies to
+    # any run that costs real time or money, because unlogged fast work has to be
+    # re-run — and re-running is slower than logging was.
+    "notebooks/**",
+    "explore/**",
+    "scratch/**",
+    "experiments/**",  # dated experiment folders — promote to scripts/ when reused
+    "**/*.ipynb",
+
+    "data/**",         # downloaded papers and inputs
+    "results/**",      # experiment outputs are evidence, not source
+    "notes/**",        # working notes and source records
+    "references/**",
+    "research/**",
+]
+
+# PROV-003 (statistics must carry a claim marker) is opt-in and applies only
+# to files matched here. Point it at whatever holds your deliverables.
+[provenance]
+claim_bearing = ["reports/**/*.md", "findings/**/*.md"]
+
+# Codex reads skills from .agents/skills; Claude Code reads .claude/skills. The
+# installer symlinks the first to the second so both find the same files.
+# HSKILL-003 warns if that link is missing, broken, or has become a stale copy.
+# Set false if this project targets Claude Code only.
+[skill_portability]
+check_codex_skills = true
+
+# STALE-001 warns when the research tree stops keeping pace with the work.
+# STALE-002 needs dated_docs set: it compares a document's `updated:`
+# frontmatter against the date git last saw the file change.
+[staleness]
+watch = ["results"]
+artefacts = ["TREE.md", "RESEARCH_LOG.md"]
+max_commits_behind = 8
+dated_docs = ["reports/**/*.md", "findings/**/*.md"]

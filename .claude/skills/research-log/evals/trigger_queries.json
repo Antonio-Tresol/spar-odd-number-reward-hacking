@@ -1,0 +1,94 @@
+{
+  "skill_name": "research-log",
+  "queries": [
+    {
+      "query": "ok I'm done for today, wrap up the session",
+      "should_trigger": true
+    },
+    {
+      "query": "the experiment finished, results landed in results/probe_scores.json \u2014 record what we found",
+      "should_trigger": true
+    },
+    {
+      "query": "starting work \u2014 where did we leave off yesterday?",
+      "should_trigger": true
+    },
+    {
+      "query": "mark H2 as refuted, the random-direction control destroyed it",
+      "should_trigger": true
+    },
+    {
+      "query": "add a new hypothesis under Q1 about paraphrase sensitivity",
+      "should_trigger": true
+    },
+    {
+      "query": "we're pivoting away from the detector idea \u2014 note that properly so it isn't lost",
+      "should_trigger": true
+    },
+    {
+      "query": "does the tree still validate? fix statuses before I commit",
+      "should_trigger": true
+    },
+    {
+      "query": "log today: ran the pilot, the effect vanished under permutation",
+      "should_trigger": true
+    },
+    {
+      "query": "the layer-12 claim survived falsification, update its status with the scorecard",
+      "should_trigger": true
+    },
+    {
+      "query": "tomorrow's experiment is paraphrase robustness \u2014 put it in the tree as planned",
+      "should_trigger": true
+    },
+    {
+      "query": "show me the git log for the last week",
+      "should_trigger": false
+    },
+    {
+      "query": "write a logging wrapper for the api client with rotation",
+      "should_trigger": false
+    },
+    {
+      "query": "add a changelog entry for v0.2",
+      "should_trigger": false
+    },
+    {
+      "query": "how do I make loguru write to a file and stdout at once",
+      "should_trigger": false
+    },
+    {
+      "query": "record a screen capture of the demo for the slide deck",
+      "should_trigger": false
+    },
+    {
+      "query": "track my hours for this sprint in a spreadsheet",
+      "should_trigger": false
+    },
+    {
+      "query": "append these three bibtex entries to references.bib",
+      "should_trigger": false
+    },
+    {
+      "query": "tail the training log and tell me the current loss",
+      "should_trigger": false
+    },
+    {
+      "query": "set up log rotation for the server",
+      "should_trigger": false
+    },
+    {
+      "query": "diff TREE.md against the version two commits ago",
+      "should_trigger": false
+    }
+  ],
+  "workspace_files": {
+    "TREE.md": "# Research tree\n\nGrammar: `- <ID>: <text> [<status>]`, optionally `| evidence: <paths> | log: <date>`.\n\n- Q1: Does the layer-12 probe direction generalise across paraphrases? [open]\n  - Q1.H1: The probe direction transfers to paraphrased prompts with minimal AUC loss [open]\n    - Q1.H1.E1: Score the paraphrase set with the frozen layer-12 probe [running]\n  - Q1.H2: The apparent effect is driven by prompt length, not semantic content [open]\n    - Q1.H2.E1: Regress probe scores on prompt length; compare partial AUC [planned]\n",
+    "RESEARCH_LOG.md": "# Research log\n\nNewest entries first. Four questions per entry.\n\n## Project summary\n\nPractice sprint probing paraphrase sensitivity of a layer-12 linear probe in a\nsmall open-weights model. Current state: probe trained, held-out AUC 0.81,\nparaphrase-transfer experiment (Q1.H1.E1) running; length confound (Q1.H2)\nnot yet tested.\n\n### 2026-07-19\n\n* What I did: Trained the layer-12 linear probe on the contrast pairs and scored the held-out split; wrote scores to results/probe_scores.json. Set up the paraphrase set for Q1.H1.E1.\n* What I expected vs what happened: Expected held-out AUC around 0.75 based on the pilot; got 0.81, noticeably higher, with tight bootstrap spread.\n* What this changes about my thinking: The direction is stronger than assumed, so paraphrase transfer (Q1.H1) and the length confound (Q1.H2) are now the load-bearing uncertainties, not probe quality.\n* What I will do next: Finish Q1.H1.E1 scoring, then run the length regression for Q1.H2.E1 and a random-direction control before touching any claim statuses.\n",
+    "results/probe_scores.json": "{\n  \"probe\": \"layer12_linear\",\n  \"split\": \"heldout\",\n  \"auc\": 0.81,\n  \"auc_bootstrap_ci\": [\n    0.78,\n    0.84\n  ],\n  \"n_examples\": 400,\n  \"seed\": 0,\n  \"paraphrase_auc\": 0.74,\n  \"random_direction_auc\": 0.52\n}\n",
+    "references.bib": "@article{perez2022discovering,\n  title={Discovering Language Model Behaviors with Model-Written Evaluations},\n  author={Perez, Ethan and others},\n  journal={arXiv preprint arXiv:2212.09251},\n  year={2022}\n}\n\n@article{marks2023geometry,\n  title={The Geometry of Truth: Emergent Linear Structure in LLM Representations},\n  author={Marks, Samuel and Tegmark, Max},\n  journal={arXiv preprint arXiv:2310.06824},\n  year={2023}\n}\n",
+    "logs/training.log": "2026-07-19 21:14:02 step=1800 loss=0.512 lr=1e-4\n2026-07-19 21:15:11 step=1900 loss=0.498 lr=1e-4\n2026-07-19 21:16:20 step=2000 loss=0.487 lr=1e-4\n2026-07-19 21:17:29 step=2100 loss=0.481 lr=9e-5\n2026-07-19 21:18:38 step=2200 loss=0.476 lr=9e-5\n",
+    "CHANGELOG.md": "# Changelog\n\n## v0.1 - 2026-07-18\n\n- Initial probe-training pipeline and held-out scoring script.\n",
+    "scripts/validate_research.py": "#!/usr/bin/env -S uv run --script\n# /// script\n# requires-python = \">=3.10\"\n# dependencies = []\n# ///\n\"\"\"Mechanical validator for TREE.md and RESEARCH_LOG.md.\n\nExit 0 = both documents structurally valid; nonzero = violations (printed).\nRun from the project root: uv run scripts/validate_research.py\n\"\"\"\n\nfrom __future__ import annotations\n\nimport re\nimport sys\nfrom dataclasses import dataclass, field\nfrom datetime import date\nfrom pathlib import Path\nfrom typing import Final\n\nROOT: Final[Path] = Path(__file__).resolve().parent.parent\nTREE: Final[Path] = ROOT / \"TREE.md\"\nLOG: Final[Path] = ROOT / \"RESEARCH_LOG.md\"\n\nSTATUS_VOCAB: Final[dict[str, set[str]]] = {\n    \"Q\": {\"open\", \"answered\", \"abandoned\"},\n    \"H\": {\"open\", \"supported\", \"refuted\", \"abandoned\"},\n    \"E\": {\"planned\", \"running\", \"done\", \"abandoned\"},\n    \"C\": {\"unvalidated\", \"survived\", \"weakened\", \"failed\"},\n}\nGRADUATED_CLAIM_STATUSES: Final[frozenset[str]] = frozenset({\"survived\", \"weakened\", \"failed\"})\nVALIDATED_CLAIM_STATUSES: Final[frozenset[str]] = frozenset({\"survived\", \"weakened\"})\nBELIEF_HYPOTHESIS_STATUSES: Final[frozenset[str]] = frozenset({\"supported\", \"refuted\"})\n\nNODE_RE: Final[re.Pattern[str]] = re.compile(\n    r\"^(?P<indent>\\s*)-\\s+(?P<id>[QHEC0-9.]+):\\s+(?P<text>.*?)\"\n    r\"\\s+\\[(?P<status>[a-z-]+)\\]\"\n    r\"(?:\\s*\\|\\s*evidence:\\s*(?P<evidence>[^|]+?))?\"\n    r\"(?:\\s*\\|\\s*log:\\s*(?P<log>\\d{4}-\\d{2}-\\d{2}))?\\s*$\"\n)\nNODE_ID_RE: Final[re.Pattern[str]] = re.compile(r\"^[QHEC]\\d+(\\.[QHEC]\\d+)*$\")\nNODE_TYPE_RE: Final[re.Pattern[str]] = re.compile(r\"([QHEC])\\d+$\")\nSCORECARD_RE: Final[re.Pattern[str]] = re.compile(r\"falsif|scorecard|validat\", re.IGNORECASE)\n\nLOG_HEADER_RE: Final[re.Pattern[str]] = re.compile(r\"^### (\\d{4}-\\d{2}-\\d{2})(?:\\s+.*)?$\")\nLOG_BULLETS: Final[tuple[str, ...]] = (\n    \"What I did:\",\n    \"What I expected vs what happened:\",\n    \"What this changes about my thinking:\",\n    \"What I will do next:\",\n)\n\n\n@dataclass(frozen=True)\nclass Node:\n    \"\"\"One parsed TREE.md node line.\"\"\"\n\n    lineno: int\n    node_id: str\n    node_type: str\n    status: str\n    evidence: tuple[str, ...]\n    log_date: str | None\n\n    @property\n    def parent_id(self) -> str | None:\n        return self.node_id.rsplit(\".\", 1)[0] if \".\" in self.node_id else None\n\n    @property\n    def needs_evidence(self) -> bool:\n        if self.node_type == \"E\":\n            return self.status == \"done\"\n        return self.node_type == \"C\" and self.status != \"unvalidated\"\n\n    @property\n    def needs_scorecard(self) -> bool:\n        return self.node_type == \"C\" and self.status in GRADUATED_CLAIM_STATUSES\n\n\n@dataclass\nclass Report:\n    \"\"\"Accumulated validation errors.\"\"\"\n\n    errors: list[str] = field(default_factory=list)\n\n    def add(self, message: str) -> None:\n        self.errors.append(message)\n\n    def add_tree(self, lineno: int, message: str) -> None:\n        self.errors.append(f\"TREE.md:{lineno}: {message}\")\n\n\ndef node_type_of(node_id: str) -> str | None:\n    \"\"\"Last letter-prefixed segment determines type: Q1.H2.E1 -> E.\"\"\"\n    match = NODE_TYPE_RE.match(node_id.split(\".\")[-1])\n    return match.group(1) if match else None\n\n\ndef is_node_line(stripped: str) -> bool:\n    \"\"\"True when a list item's first token is shaped like a node ID.\"\"\"\n    if not stripped.startswith(\"- \") or \":\" not in stripped:\n        return False\n    return bool(NODE_ID_RE.match(stripped[2:].split(\":\", 1)[0]))\n\n\ndef parse_node(line: str, lineno: int, report: Report) -> Node | None:\n    \"\"\"Parse one node line, reporting grammar and id errors.\"\"\"\n    match = NODE_RE.match(line)\n    if match is None:\n        report.add_tree(lineno, f\"node line does not match grammar: {line.strip()[:80]}\")\n        return None\n    node_id = match[\"id\"]\n    ntype = node_type_of(node_id)\n    if ntype is None:\n        report.add_tree(lineno, f\"bad node id {node_id!r}\")\n        return None\n    evidence = tuple(e.strip() for e in (match[\"evidence\"] or \"\").split(\",\") if e.strip())\n    return Node(lineno, node_id, ntype, match[\"status\"], evidence, match[\"log\"])\n\n\ndef check_lineage(node: Node, seen: set[str], report: Report) -> None:\n    \"\"\"IDs are unique, and every child's parent is defined above it.\"\"\"\n    if node.node_id in seen:\n        report.add_tree(node.lineno, f\"duplicate id {node.node_id}\")\n    parent = node.parent_id\n    if parent is None:\n        if node.node_type != \"Q\":\n            report.add_tree(node.lineno, f\"top-level node {node.node_id} must be a question (Q)\")\n    elif parent not in seen:\n        report.add_tree(node.lineno, f\"{node.node_id} has no parent {parent} defined above it\")\n\n\ndef check_status(node: Node, report: Report) -> None:\n    allowed = STATUS_VOCAB[node.node_type]\n    if node.status not in allowed:\n        report.add_tree(node.lineno, f\"{node.node_id} status {node.status!r} not in {sorted(allowed)}\")\n\n\ndef check_evidence(node: Node, report: Report) -> None:\n    \"\"\"Evidence must be present where required, exist on disk, and \u2014 for a\n    graduated claim \u2014 include a falsification/validation scorecard.\"\"\"\n    if node.needs_evidence and not node.evidence:\n        report.add_tree(node.lineno, f\"{node.node_id} [{node.status}] requires evidence: <path>\")\n    for ev in node.evidence:\n        if not (ROOT / ev).exists():\n            report.add_tree(node.lineno, f\"{node.node_id} evidence path does not exist: {ev}\")\n    if node.needs_scorecard and not any(SCORECARD_RE.search(Path(ev).name) for ev in node.evidence):\n        report.add_tree(\n            node.lineno,\n            f\"{node.node_id} [{node.status}] needs a scorecard evidence file \"\n            \"(name containing 'falsify', 'scorecard', or 'validation')\",\n        )\n\n\ndef check_hypothesis_support(nodes: list[Node], report: Report) -> None:\n    \"\"\"A belief change requires at least one validated child claim.\"\"\"\n    statuses = {n.node_id: n.status for n in nodes}\n    for node in nodes:\n        if node.node_type != \"H\" or node.status not in BELIEF_HYPOTHESIS_STATUSES:\n            continue\n        prefix = f\"{node.node_id}.\"\n        has_validated_claim = any(\n            nid.startswith(prefix) and node_type_of(nid) == \"C\" and status in VALIDATED_CLAIM_STATUSES\n            for nid, status in statuses.items()\n        )\n        if not has_validated_claim:\n            report.add(\n                f\"TREE.md: hypothesis {node.node_id} is [{node.status}] but has no survived/weakened claim\"\n            )\n\n\ndef validate_tree(report: Report) -> list[Node]:\n    if not TREE.exists():\n        report.add(\"TREE.md missing\")\n        return []\n    nodes: list[Node] = []\n    seen: set[str] = set()\n    in_fence = False\n    for lineno, line in enumerate(TREE.read_text().splitlines(), 1):\n        if line.lstrip().startswith((\"```\", \"~~~\")):\n            in_fence = not in_fence   # fenced examples document the grammar\n            continue\n        if in_fence or not is_node_line(line.strip()):\n            continue\n        node = parse_node(line, lineno, report)\n        if node is None:\n            continue\n        check_lineage(node, seen, report)\n        check_status(node, report)\n        check_evidence(node, report)\n        seen.add(node.node_id)\n        nodes.append(node)\n    check_hypothesis_support(nodes, report)\n    return nodes\n\n\ndef split_log_entries(text: str, duplicates: list[str] | None = None) -> dict[str, str]:\n    \"\"\"Split the log into {ISO date: entry body}, preserving file order.\n\n    Repeated dates are recorded in `duplicates` rather than silently overwriting:\n    a collapsed entry meant a whole day's content went unvalidated while the run\n    still reported success.\n    \"\"\"\n    duplicates = duplicates if duplicates is not None else []\n    entries: dict[str, str] = {}\n    current: str | None = None\n    for line in text.splitlines():\n        header = LOG_HEADER_RE.match(line)\n        if header:\n            current = header.group(1)\n            if current in entries:\n                duplicates.append(current)\n            entries[current] = \"\"\n        elif current is not None:\n            entries[current] += line + \"\\n\"\n    return entries\n\n\ndef check_log_dates(dates: list[str], report: Report) -> None:\n    for value in dates:\n        try:\n            date.fromisoformat(value)\n        except ValueError:\n            report.add(f\"RESEARCH_LOG.md: bad date {value}\")\n    for earlier, later in zip(dates, dates[1:]):\n        if earlier <= later:\n            report.add(f\"RESEARCH_LOG.md: entries not newest-first ({earlier} then {later})\")\n\n\ndef check_log_bullets(entries: dict[str, str], report: Report) -> None:\n    \"\"\"Each entry answers all four questions.\n\n    Emphasis is stripped first: `* **What I did**: ...` puts the colon outside\n    the bold, which is the most natural markdown and previously failed.\n    \"\"\"\n    for entry_date, body in entries.items():\n        plain = body.replace(\"*\", \"\").replace(\"_\", \"\")\n        for bullet in LOG_BULLETS:\n            label = bullet.rstrip(\":\")\n            if not re.search(re.escape(label) + r\"\\s*:\\s*(\\S.*)\", plain):\n                report.add(f\"RESEARCH_LOG.md {entry_date}: missing or empty bullet '{bullet}'\")\n\n\ndef validate_log(report: Report) -> set[str]:\n    \"\"\"Returns the set of entry dates (ISO strings).\"\"\"\n    if not LOG.exists():\n        report.add(\"RESEARCH_LOG.md missing\")\n        return set()\n    text = LOG.read_text()\n    if \"## Project summary\" not in text and \"## **Project summary**\" not in text:\n        report.add(\"RESEARCH_LOG.md: missing '## Project summary' section\")\n    duplicates: list[str] = []\n    entries = split_log_entries(text, duplicates)\n    for repeated in duplicates:\n        report.add(f\"RESEARCH_LOG.md: duplicate entry for {repeated}; merge them\")\n    dates = list(entries)\n    check_log_dates(dates, report)\n    check_log_bullets(entries, report)\n    return set(dates)\n\n\ndef check_cross_references(nodes: list[Node], log_dates: set[str], report: Report) -> None:\n    for node in nodes:\n        if node.log_date and node.log_date not in log_dates:\n            report.add(f\"TREE.md: {node.node_id} references log {node.log_date}, no such entry\")\n\n\ndef main() -> int:\n    report = Report()\n    nodes = validate_tree(report)\n    log_dates = validate_log(report)\n    check_cross_references(nodes, log_dates, report)\n    if report.errors:\n        print(f\"FAIL \u2014 {len(report.errors)} violation(s):\")\n        for error in report.errors:\n            print(f\"  - {error}\")\n        return 1\n    print(f\"OK \u2014 TREE.md ({len(nodes)} nodes) and RESEARCH_LOG.md ({len(log_dates)} entries) valid.\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "skill_name": "validate-claims",
+  "workspace_files": {
+    "report.md": "# Probe transfer report\n\n## Abstract\n\nLinear probes trained on layer 12 activations transfer across prompts, improving detection accuracy by 34% over the zero-shot baseline (0.81 vs 0.47, n=500, p < 0.001, bootstrap 95% CI [0.29, 0.39]).\n\n## Intro\n\nWe claim probes beat baselines on all three splits. Mean AUROC 0.91 (sd 0.02).\n\n## Results\n\nAccuracy 0.81 on the held-out split; F1 0.78; see results/metrics.json.\n",
+    "writeup.md": "# External writeup (draft)\n\nOur detector reaches 0.81 accuracy and 0.78 F1 on the held-out set (n=500).\n\nThe intro claims a 34% improvement over the zero-shot baseline.\n\nWe cite Perez et al. 2022 (arXiv 2212.09251) and Zou et al. 2023 for methodology.\n\nStatus: due for external sharing tomorrow.\n",
+    "findings.md": "# Findings\n\n- F1: probe transfer holds across 3 of 4 prompt families (AUROC 0.91, 0.89, 0.93; fails on family D at 0.55).\n- F2: ablating layer 12 drops accuracy from 0.81 to 0.52.\n- F3: the effect survives a permutation null (p = 0.002, 1000 shuffles).\n- Open: F2 was measured with an older config; may need a rerun.\n",
+    "README.md": "# probe-transfer\n\nSmall study of linear-probe transfer across prompt families.\n\n## Results\n\n| split | accuracy | F1 |\n|-------|----------|-----|\n| dev   | 0.84     | 0.80 |\n| test  | 0.81     | 0.78 |\n\nNumbers come from `results/metrics.json`; predictions in `results/preds.jsonl`.\n",
+    "results/preds.jsonl": "{\"id\": 1, \"pred\": 1, \"label\": 1, \"score\": 0.93}\n{\"id\": 2, \"pred\": 0, \"label\": 0, \"score\": 0.12}\n{\"id\": 3, \"pred\": 1, \"label\": 0, \"score\": 0.71}\n{\"id\": 4, \"pred\": 1, \"label\": 1, \"score\": 0.88}\n{\"id\": 5, \"pred\": 0, \"label\": 0, \"score\": 0.05}\n{\"id\": 6, \"pred\": 1, \"label\": 1, \"score\": 0.97}\n",
+    "results/metrics.json": "{\n  \"split\": \"test\",\n  \"n\": 500,\n  \"accuracy\": 0.81,\n  \"f1\": 0.78,\n  \"auroc\": 0.91,\n  \"baseline_accuracy\": 0.47,\n  \"improvement\": 0.34,\n  \"seed\": 42\n}\n",
+    "config.yaml": "model: gemma-2-9b\nlayer: 12\nprobe: linear\nseed: 42\ndata:\n  train: data/train.jsonl\n  test: data/test.jsonl\ntraining:\n  lr: 0.001\n  epochs: 10\n",
+    "submission_draft.md": "# Submission draft: probe transfer across prompt families\n\n## Numbers section\n\nAccuracy 0.81 (baseline 0.47), F1 0.78, AUROC 0.91 on n=500 held-out examples.\nImprovement over baseline: 34% absolute (95% CI [0.29, 0.39]).\nPermutation null: p = 0.002 with 1000 shuffles.\n",
+    "deck.md": "# Slide deck: probe transfer\n\nSlide 3 cites:\n\n1. Perez et al. 2022, \"Discovering Language Model Behaviors with Model-Written Evaluations\" (arXiv 2212.09251)\n2. Zou et al. 2023, \"Representation Engineering\" (arXiv 2310.01405)\n3. Marks & Tegmark 2023, \"The Geometry of Truth\" (arXiv 2310.06824)\n\nSlide 5: accuracy 0.81 vs baseline 0.47.\n",
+    "docs/index.md": "# Docs\n\n- [Setup](setup.md)\n- [Results overview](../README.md)\n- [Metrics definitions](metrics.md)\n",
+    "docs/setup.md": "# Setup\n\nInstall with `pip install -e .` and run `python scripts/eval.py`.\n",
+    "docs/metrics.md": "# Metrics\n\nAccuracy, F1, and AUROC computed over results/preds.jsonl.\n",
+    "appendix.md": "# Appendix A: KL bound\n\nWe derive KL(p || q) <= (1/2) * chi^2(p || q) for the probe output distributions.\n\nStep 1: log x <= x - 1.\nStep 2: apply to the likelihood ratio and take expectations under p.\nStep 3: bound the second moment by the chi-squared divergence.\n",
+    "tests/test_metrics.py": "def test_accuracy_bounds():\n    acc = 0.81\n    assert 0.0 <= acc <= 1.0\n\n\ndef test_f1_bounds():\n    f1 = 0.78\n    assert 0.0 <= f1 <= 1.0\n",
+    "scripts/eval.py": "import json\n\nwith open(\"results/preds.jsonl\") as f:\n    preds = [json.loads(l) for l in f]\n\nacc = sum(p[\"pred\"] == p[\"label\"] for p in preds) / len(preds)\nprint(json.dumps({\"accuracy\": acc}))\n"
+  },
+  "queries": [
+    { "query": "the findings report is ready — check it before I send it to the team", "should_trigger": true },
+    { "query": "make sure every number in report.md actually matches the results files", "should_trigger": true },
+    { "query": "we're sharing writeup.md externally tomorrow, do the final pass", "should_trigger": true },
+    { "query": "did we ever verify the 34% claim in the abstract against the data?", "should_trigger": true },
+    { "query": "audit findings.md for unsupported claims please", "should_trigger": true },
+    { "query": "add provenance markers to the statistics in the report", "should_trigger": true },
+    { "query": "the deck cites three papers — confirm they're real and say what we claim they say", "should_trigger": true },
+    { "query": "before this goes into the deliverable, trace the accuracy numbers back to their runs", "should_trigger": true },
+    { "query": "can you sanity check the numbers section of our submission draft", "should_trigger": true },
+    { "query": "verify the results table in the README against results/", "should_trigger": true },
+    { "query": "run the test suite and tell me if it passes", "should_trigger": false },
+    { "query": "validate config.yaml against the schema", "should_trigger": false },
+    { "query": "check that the markdown links in the docs aren't broken", "should_trigger": false },
+    { "query": "compute accuracy from results/preds.jsonl and print it", "should_trigger": false },
+    { "query": "review this PR for code quality", "should_trigger": false },
+    { "query": "should I use a bootstrap CI or a t-test for this comparison?", "should_trigger": false },
+    { "query": "spellcheck the report before I print it", "should_trigger": false },
+    { "query": "lint the repo and fix what's autofixable", "should_trigger": false },
+    { "query": "double-check my derivation of the KL bound in the appendix", "should_trigger": false },
+    { "query": "make the claims in the intro punchier", "should_trigger": false }
+  ]
+}

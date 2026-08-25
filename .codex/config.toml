@@ -1,0 +1,12 @@
+# Team-shared Codex CLI configuration, committed as .codex/config.toml.
+# Loads only after each member marks the project trusted (Codex prompts on
+# first open). Project config outranks personal ~/.codex/config.toml but not
+# CLI flags.
+#
+# Compaction: Codex takes a TOKEN COUNT, not a percentage. 200000 assumes a
+# 400k-window model (GPT-5.5 class) — halve/adjust if the team's default model
+# has a different window. Keys stay at top level: they have historically been
+# ignored inside [profiles.*] blocks (openai/codex#14456).
+
+model_auto_compact_token_limit = 200000
+model_auto_compact_token_limit_scope = "total"
