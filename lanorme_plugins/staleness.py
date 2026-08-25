@@ -202,7 +202,7 @@ class StalenessCheck:
         for path in sorted(root.rglob("*.md")):
             if ".git" in path.parts:
                 continue
-            relative = str(path.relative_to(root))
+            relative = path.relative_to(root).as_posix()
             if not is_glob_match(relative, self.dated_docs):
                 continue
             declared = declared_updated(path.read_text(encoding="utf-8"))
