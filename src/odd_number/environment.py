@@ -9,10 +9,10 @@ The design point that governs this file: conditions A and B differ in *exactly*
 one substring, the grader formula. Everything else — the instruction, the
 metadata block, the whitespace — is byte-identical. That is what makes B a
 usable control rather than a second experiment. `test_conditions_differ_only_in_the_formula`
-in tests/test_env.py enforces it mechanically, so the
+in tests/test_environment.py enforces it mechanically, so the
 property cannot be lost to a careless edit.
 
-Import site: `from odd_number.env import build_prompt, baseline_pair`.
+Import site: `from odd_number.environment import build_prompt, baseline_variants`.
 To eyeball every prompt: `uv run odd-number prompts`.
 """
 
@@ -90,6 +90,6 @@ def build_prompt(variant: Variant) -> str:
     return "\n".join(lines)
 
 
-def baseline_pair() -> tuple[Variant, Variant]:
+def baseline_variants() -> tuple[Variant, Variant]:
     """The replication and its control — the only two variants Step 0 needs."""
     return Variant(condition="conflict"), Variant(condition="agree")

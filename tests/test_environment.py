@@ -6,24 +6,24 @@ makes the two conditions differ in some second way, every effect size measured
 against that control silently becomes uninterpretable. That is exactly the class
 of bug that does not announce itself, so it gets a test.
 
-Run:  uv run pytest tests/test_env.py
+Run:  uv run pytest tests/test_environment.py
 """
 
 from __future__ import annotations
 
-from odd_number.env import (
+from odd_number.environment import (
     FORMULA_AGREE,
     FORMULA_CONFLICT,
     INSTRUCTION,
     Variant,
-    baseline_pair,
+    baseline_variants,
     build_prompt,
 )
 
 
 def test_conditions_differ_only_in_the_formula() -> None:
     """A and B must be byte-identical outside the grader formula."""
-    conflict, agree = (build_prompt(v) for v in baseline_pair())
+    conflict, agree = (build_prompt(v) for v in baseline_variants())
 
     # Substituting one formula for the other must make them identical. This is
     # stronger than comparing lengths or diffing lines: it admits no second

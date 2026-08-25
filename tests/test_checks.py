@@ -215,7 +215,7 @@ def test_tensors_quiet_on_pandas(tmp_path: Path) -> None:
         tmp_path,
         "m.py",
         "import pandas as pd\n\n"
-        "def summarise(frame: pd.DataFrame) -> pd.DataFrame:\n"
+        "def summarise_by_variant(frame: pd.DataFrame) -> pd.DataFrame:\n"
         "    return frame.transpose().squeeze()\n",
     )
     assert codes(TensorsCheck().run(src_root=str(tmp_path))) == []

@@ -37,13 +37,34 @@ Two kinds of Python live here, and they follow different rules.
 
   ```
   uv run odd-number prompts                    # print every prompt variant
+  uv run odd-number models                     # the pinned model slate
+  uv run odd-number endpoints qwen/qwen3.6-27b # provider tags available to pin
   uv run odd-number collect --mock --n 5       # no API key needed
-  uv run odd-number collect --model deepseek/deepseek-r1 --n 40
+  uv run odd-number collect --model qwen/qwen3.6-27b --n 40
+  uv run odd-number audit results/<file>.jsonl # did the pins hold?
   uv run odd-number grade results/<file>.jsonl
   ```
 
   Modules are importable library code with no import-time side effects;
-  argument parsing lives only in `cli.py`. Type hints throughout.
+  argument parsing lives only in `cli.py`. Type hints throughout, absolute
+  imports throughout (`from odd_number.x import y`, never `from .x`).
+
+  Three rules the layout enforces.
+
+  1. **Vendor types stop at `completions.py`.** Nothing else touches a
+     `ChatResult`, and that boundary uses direct typed attribute access, so a
+     renamed SDK field raises instead of silently yielding `""`.
+  2. **Configuration is read once**, in `settings.py`, via `pydantic-settings`
+     — never `os.environ.get` at a point of use.
+  3. **Names say what a thing is or does.** A module is named for the principal
+     type it defines, pluralised (`rollouts.py` → `Rollout`, `completions.py` →
+     `Completion`, `grades.py` → `Grade`, `candidates.py` → `Candidate`), or for
+     the domain area when it defines a single configuration or specification
+     rather than a kind of thing (`settings.py`, `sampling.py`, `environment.py`,
+     `client.py`). Functions are verbs that name their object — `classify_parity`
+     not `classify`, `build_routing_body` not `routing`, `load_completed_keys`
+     not `done_keys`. Types are what the thing *is*, not what happened to it:
+     `Grade`, not `Graded`.
 
 The split is deliberate: a promoted pipeline that other code imports and tests
 exercise wants to be a package, while a validator that must run in a repo with
