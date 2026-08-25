@@ -117,6 +117,7 @@ Phases iterate; the gates do not.
   | `research` | searching or retrieving literature |
   | `derive-from-sources` | writing anything derived from named sources |
   | `eval-design` | designing an eval or writing eval questions |
+  | `model-forensics` | explaining *why* a model did something concerning — before calling it reward hacking, deception, or misalignment |
   | `experiment-engineering` | writing any script that costs GPU time or API budget |
   | `falsify` | before any claim graduates from `unvalidated` |
   | `validate-claims` | before any document with numbers leaves the project |
