@@ -9,8 +9,8 @@ This module *collects*; it does not judge. Parsing a number out of a response is
 where measurement bugs hide, so that lives in `grading.py` and runs as a
 separate pass over the raw JSONL. Raw text is never discarded.
 
-Provider: OpenRouter, so one key reaches every model worth comparing. Set
-OPENROUTER_API_KEY in a gitignored .env or the environment.
+Retries are the SDK's job — see `client.py` for why there is exactly one retry
+layer.
 """
 
 from __future__ import annotations
@@ -19,18 +19,21 @@ import hashlib
 import json
 import os
 import random
-import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Final
+from time import monotonic
+from typing import Any
 
-import httpx
+from openrouter import OpenRouter
 
 from .env import Variant, build_prompt
-from .retry import api_retry, as_transient
 
-ENDPOINT: Final[str] = "https://openrouter.ai/api/v1/chat/completions"
-TIMEOUT: Final[float] = 300.0
+#: Reasoning we can actually read, as opposed to a provider-side summary or an
+#: encrypted blob. The distinction is load-bearing: the forensics protocol's
+#: first step is reading the CoT, and a *summary* is not the CoT. Treating one
+#: as the other would quietly turn "what the model reasoned" into "what the
+#: provider chose to tell us about it".
+READABLE_REASONING = "reasoning.text"
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +48,8 @@ class Rollout:
     prompt: str
     response: str
     reasoning: str
+    reasoning_kinds: list[str]
+    refusal: str | None
     finish_reason: str
     usage: dict[str, Any]
     error: str | None
@@ -82,7 +87,7 @@ def done_keys(out_path: Path) -> set[tuple[str, int]]:
 
 
 def seed_for(label: str, index: int) -> int:
-    """A stable per-rollout seed.
+    """A stable per-rollout seed, also sent to the API as `seed`.
 
     NOT `hash()`: Python randomises string hashing per process (PYTHONHASHSEED),
     so a hash-derived seed differs on every run and the value recorded in the
@@ -109,58 +114,77 @@ def mock_response(prompt: str, seed: int) -> tuple[str, str]:
     return str(number), reasoning + f"Therefore {number}."
 
 
-@api_retry
-@as_transient
-def call_model(client: httpx.Client, model: str, prompt: str) -> dict[str, Any]:
-    """One chat completion, retrying transient failures.
+def reasoning_kinds(message: Any) -> list[str]:
+    """Which kinds of reasoning the provider returned, e.g. `reasoning.text`.
 
-    The decorators do the work: `as_transient` turns retryable httpx errors into
-    TransientError, `api_retry` retries exactly that with jittered backoff.
+    Empty when the provider returned none. See READABLE_REASONING for why the
+    kind is recorded rather than assumed.
     """
-    response = client.post(
-        ENDPOINT,
-        headers={"Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}"},
-        json={
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 1.0,
-        },
+    details = getattr(message, "reasoning_details", None) or []
+    kinds: list[str] = []
+    for detail in details:
+        kind = getattr(detail, "type", None)
+        if kind is not None:
+            kinds.append(str(kind))
+    return kinds
+
+
+def extract(result: Any) -> dict[str, Any]:
+    """Pull the fields worth keeping out of a ChatResult."""
+    choice = result.choices[0]
+    message = choice.message
+    return {
+        "response": getattr(message, "content", None) or "",
+        "reasoning": getattr(message, "reasoning", None) or "",
+        "reasoning_kinds": reasoning_kinds(message),
+        "refusal": getattr(message, "refusal", None),
+        "finish_reason": getattr(choice, "finish_reason", None) or "",
+        "usage": result.usage.model_dump() if getattr(result, "usage", None) else {},
+    }
+
+
+def call_model(client: OpenRouter, model: str, prompt: str, seed: int) -> dict[str, Any]:
+    """One chat completion. The SDK retries transient failures internally."""
+    result = client.chat.send(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=1.0,
+        seed=seed,
+        stream=False,
     )
-    response.raise_for_status()
-    return response.json()
+    return extract(result)
 
 
-def extract(payload: dict[str, Any]) -> tuple[str, str, str, dict[str, Any]]:
-    """Pull (response, reasoning, finish_reason, usage) out of an API payload."""
-    choice = payload["choices"][0]
-    message = choice.get("message", {})
-    return (
-        message.get("content") or "",
-        message.get("reasoning") or "",
-        choice.get("finish_reason") or "",
-        payload.get("usage") or {},
-    )
+def blank_fields() -> dict[str, Any]:
+    """The response fields, unset — what a failed rollout records."""
+    return {
+        "response": "",
+        "reasoning": "",
+        "reasoning_kinds": [],
+        "refusal": None,
+        "finish_reason": "",
+        "usage": {},
+    }
 
 
-def run_one(client: httpx.Client | None, variant: Variant, index: int, model: str) -> Rollout:
-    """Collect a single rollout, capturing errors rather than raising.
-
-    `call_model` retries transient failures itself; only an exhausted retry
-    budget or a permanent error (400/401/403) reaches the `error` field.
-    """
+def run_one(client: OpenRouter | None, variant: Variant, index: int, model: str) -> Rollout:
+    """Collect a single rollout, capturing errors rather than raising."""
     prompt = build_prompt(variant)
     seed = seed_for(variant.label, index)
-    started = time.monotonic()
-    response = reasoning = finish = ""
-    usage: dict[str, Any] = {}
+    started = monotonic()
+    fields = blank_fields()
     error: str | None = None
     try:
         if client is None:
             response, reasoning = mock_response(prompt, seed)
-            finish = "stop"
+            fields |= {
+                "response": response,
+                "reasoning": reasoning,
+                "reasoning_kinds": [READABLE_REASONING],
+                "finish_reason": "stop",
+            }
         else:
-            payload = call_model(client, model, prompt)
-            response, reasoning, finish, usage = extract(payload)
+            fields = call_model(client, model, prompt, seed)
     except Exception as exc:  # noqa: BLE001 — recorded, not swallowed
         error = f"{type(exc).__name__}: {exc}"
     return Rollout(
@@ -170,12 +194,9 @@ def run_one(client: httpx.Client | None, variant: Variant, index: int, model: st
         model=model,
         seed=seed,
         prompt=prompt,
-        response=response,
-        reasoning=reasoning,
-        finish_reason=finish,
-        usage=usage,
         error=error,
-        elapsed_s=round(time.monotonic() - started, 3),
+        elapsed_s=round(monotonic() - started, 3),
+        **fields,
     )
 
 

@@ -14,13 +14,12 @@ library code with no side effects at import time.
 from __future__ import annotations
 
 import argparse
-import os
 import sys
+from contextlib import ExitStack
 from pathlib import Path
 
-import httpx
-
-from .collect import TIMEOUT, append_rollout, done_keys, load_dotenv, run_one
+from .client import build_client
+from .collect import append_rollout, done_keys, load_dotenv, run_one
 from .env import Variant, baseline_pair, build_prompt
 from .grading import grade_records, load, summarise
 
@@ -54,10 +53,6 @@ def cmd_collect(args: argparse.Namespace) -> int:
     root = project_root()
     load_dotenv(root)
 
-    if not args.mock and not os.environ.get("OPENROUTER_API_KEY"):
-        print("OPENROUTER_API_KEY is not set. Put it in .env, or pass --mock.", file=sys.stderr)
-        return 2
-
     out_path = resolve_out_path(args, root)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -72,25 +67,31 @@ def cmd_collect(args: argparse.Namespace) -> int:
     if not todo:
         return 0
 
-    client = None if args.mock else httpx.Client(timeout=TIMEOUT)
-    failures = 0
     try:
-        with out_path.open("a", encoding="utf-8") as handle:
-            for position, (variant, index) in enumerate(todo, start=1):
-                rollout = run_one(client, variant, index, args.model)
-                append_rollout(handle, rollout)
-                if rollout.error:
-                    failures += 1
-                    print(f"  [{position}/{len(todo)}] {variant.label} ERROR {rollout.error}")
-                    if failures >= CONSECUTIVE_FAILURE_LIMIT:
-                        print(f"{failures} failures in a row; stopping.", file=sys.stderr)
-                        return 1
-                else:
-                    failures = 0
-                    print(f"  [{position}/{len(todo)}] {variant.label} -> {rollout.response[:40]!r}")
-    finally:
+        client = None if args.mock else build_client()
+    except RuntimeError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+
+    failures = 0
+    with ExitStack() as stack:
+        # The SDK client is a context manager (no close()); enter it only when
+        # there is one, so --mock needs no client at all.
         if client is not None:
-            client.close()
+            stack.enter_context(client)
+        handle = stack.enter_context(out_path.open("a", encoding="utf-8"))
+        for position, (variant, index) in enumerate(todo, start=1):
+            rollout = run_one(client, variant, index, args.model)
+            append_rollout(handle, rollout)
+            if rollout.error:
+                failures += 1
+                print(f"  [{position}/{len(todo)}] {variant.label} ERROR {rollout.error}")
+                if failures >= CONSECUTIVE_FAILURE_LIMIT:
+                    print(f"{failures} failures in a row; stopping.", file=sys.stderr)
+                    return 1
+            else:
+                failures = 0
+                print(f"  [{position}/{len(todo)}] {variant.label} -> {rollout.response[:40]!r}")
     return 0
 
 
