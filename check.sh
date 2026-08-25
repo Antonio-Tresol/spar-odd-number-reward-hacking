@@ -20,7 +20,9 @@ uvx ruff format --check . && uvx ruff check --select I .
 PYTHONPATH=. uvx lanorme check "${1:-.}"
 
 if [[ -d tests ]]; then
-    uv run --with pytest --with lanorme pytest tests -q
+    # httpx: the collection runner's one dependency, so its retry tests can
+    # import the exception types they assert on.
+    uv run --with pytest --with lanorme --with httpx pytest tests -q
 fi
 
 if [[ -f TREE.md ]]; then
