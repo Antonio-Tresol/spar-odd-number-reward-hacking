@@ -192,7 +192,7 @@ name, changes the picture completely:
 
 The gemma case is the proof that this is not pedantry: a lens fitted on base
 weights does not transfer to the instruct checkpoint, and nothing in the
-directory name warns you. So `Candidate.lens_matches_served_weights` requires a
+directory name warns you. So `PinnedModel.lens_matches_served_weights` requires a
 `lens_ckpt_source` naming the artefact that was actually read — a lens whose
 provenance nobody checked is an unknown, not a match. `test_pinning.py` pins
 both the gemma mismatch and the rule itself, so the check cannot be satisfied
