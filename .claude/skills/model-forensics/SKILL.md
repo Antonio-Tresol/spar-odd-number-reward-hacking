@@ -161,6 +161,35 @@ These are the failure modes that make otherwise-careful investigations wrong.
   carry a causal claim on its own. It generates the hypothesis; interventions
   test it.
 
+## Analysis of Competing Hypotheses
+
+Keep an **ACH table** as the investigation's spine. This is the mentor's own
+recommended way of organising evidence ("Concrete Problems in Model Forensics"),
+and it does not appear in the paper — but it is the natural bookkeeping for a
+protocol whose whole job is choosing between explanations.
+
+Rows are evidence, columns are hypotheses. Each cell records whether that
+evidence is **consistent (+)**, **inconsistent (−)**, or **neutral (·)** with
+that hypothesis:
+
+| Evidence | H1 reward hacking | H2 spec-relevant | H3 contradictory spec |
+|---|---|---|---|
+| Gaming persists when told it is misaligned | + | · | − |
+| Rate tracks a graded manipulation | + | + | · |
+| Model calls it "cheating" in CoT | + | − | − |
+
+The discipline that makes ACH work, and the reason it beats a prose argument:
+
+- **Diagnostic evidence is evidence that discriminates.** A row of all `+` tells
+  you nothing, however impressive it looks. Prioritise experiments whose
+  outcomes differ *across columns* — the strongest test is one where the
+  hypotheses predict opposite results.
+- **Eliminate, don't confirm.** The surviving hypothesis is the one with fewest
+  inconsistencies, not the one with most confirmations. This is what stops the
+  favourite hypothesis from winning on volume of supporting anecdote.
+- Add the benign explanations from Step 2 as their own columns. If they were
+  never columns, they were never really ruled out.
+
 ## Claim template
 
 Record findings in this shape so hedging survives into the deliverable:
