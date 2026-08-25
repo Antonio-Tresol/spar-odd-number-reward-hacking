@@ -101,3 +101,92 @@ a specific hypothesis has formed.
 - **In-rollout follow-up question.** Probe understanding while holding context
   fixed, avoiding the perspective shift entirely. The trade-off is that it is
   frequently an unnatural intervention — the model may notice.
+
+---
+
+# Probing methods (Appendix E.4–E.9)
+
+These interrogate what the model *understood* or *believed*, as opposed to the
+resampling methods above, which measure what drove the output. Each carries a
+specific interpretive limit — the limit is the reason to read this file before
+using one, not after.
+
+## Reflective CoT prefills (E.4)
+
+Append a reflection sentence to the end of the reasoning trace and let the model
+continue, then have a judge grade the continuation. Example lead-in: *"Let me
+review whether the user would endorse my commit:"*
+
+**Limit — this method is off-policy.** The prefilled sentence is not necessarily
+one the model would have produced itself. Read a positive result as an **upper
+bound on what the model could verbalize given a lead-in**, never as evidence
+that the belief was active during the original rollout. This is the single
+easiest way to manufacture a false "the model knew" finding.
+
+## Follow-up questioning (E.5)
+
+Continue a completed rollout with a user message asking about the behavior.
+
+- **Indirect** — does not name the behavior ("Have you finished the task?").
+  Preferred when you want uncued evidence: naming the behavior lets the model
+  update its beliefs about what the user wanted *from the question itself*.
+- **Direct** — asks about behavior or motives explicitly, often as a forced
+  choice between candidate motives or a ranked-preference task.
+
+Default to indirect first. Once you ask directly, that rollout is contaminated
+for any further uncued probing.
+
+## Third-person probing (E.6)
+
+Describe the environment (or a partial rollout) and ask what an agent *would* or
+*should* do, instead of embedding the model in the harness.
+
+This separates **what the model endorses from outside the role** from **what it
+does inside the role**. A gap between them is a finding, not noise: it suggests
+role-specific pressures (task compliance, format constraints) are partially
+overriding stated preferences.
+
+Pair with §8.2's caution — ask about the *environment*, not about motives, since
+the perspective shift makes motive answers hard to attribute.
+
+## Audit note justifications (E.7)
+
+Require a short structured note beside each tool call taking the target action,
+stating the reason. Converts self-report into a per-action artifact a judge can
+grade at scale.
+
+**Why this one is unusually safe:** in the funding-email environment, requiring
+audit notes did *not* significantly change the whistleblowing rate — so it
+observes without perturbing. Verify that property in your own setting before
+relying on it.
+
+Two uses: measuring stated-motive prevalence, and confirming a counterfactual
+actually landed on the model's in-context reasoning.
+
+**Limit:** stated-motive prevalence is *not* a reliable estimator of causal
+importance. The paper reports an ordering inversion between stated motives and
+counterfactual evidence — the most-stated motive was not the most causal.
+
+## Reasoning trace analysis (E.8)
+
+An LLM judge grades traces along one task-specific dimension, giving quantitative
+measures across more rollouts than hand-reading allows. Dimensions used in the
+paper include stated belief about legality, a 1–5 source-driven vs
+content-driven scale, degree of meta-reasoning in opening paragraphs,
+"CTF-vibes" in framing, and verbalized awareness of user disapproval.
+
+**Reliability requirements — all three, or the numbers are decoration:** judge
+prompt engineering, calibration against held-out human-graded examples, and
+reported agreement statistics. Treat the output as *one* line of evidence to
+converge with counterfactuals; a judge can systematically miss or misread a
+pattern, and a systematic miss looks exactly like a real null.
+
+## Logprob prefill analysis (E.9)
+
+Probes *when* a decision becomes latent. After each paragraph break, prefill the
+next paragraph with a candidate commitment phrase (e.g. *"But maybe we can
+cheat"*) and record the conditional log probability. The trajectory across
+paragraphs shows when the model becomes likely to verbalize the decision.
+
+Requires logprob access, so it is unavailable on most hosted reasoning APIs —
+check before designing around it.

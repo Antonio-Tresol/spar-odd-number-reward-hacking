@@ -177,3 +177,123 @@ environment: an in-context reward function is exactly an ambiguous, surprising
 environment feature that an RLVR-trained model is biased toward treating as
 task-relevant. Motif 1 (task misspecification) is the second: the prompt
 arguably makes the two instructions unsatisfiable together.
+
+---
+
+# Appendices D and E (extracted 2026-08-24, second pass)
+
+Added after review flagged that the first pass captured only §4's four methods
+and missed the appendix material entirely.
+
+## §D — Additional Sources of Hypothesis Generation
+
+Framing: these "become more important in futures where the CoT is less
+complete, faithful, or is replaced with latent CoT architectures." Nine
+sources, verbatim headings:
+
+1. **Natural language autoencoders (NLAs)** — "holistic natural-language
+   descriptions of a model's residual stream activations". "NLAs surfaced
+   safety-relevant phenomena that the CoT did not (e.g., unverbalized evaluation
+   awareness during the Claude Opus 4.6 pre-deployment audit)."
+2. **Activation oracles** — "a supervised analogue of NLAs that provide a
+   general question-answering interface to interpret LLM activations". SoTA
+   across model-organism secret-keeping tasks.
+3. **Sparse autoencoders** — active features "suggest candidate hypotheses for
+   what the model is representing and why".
+4. **Circuit tracing** — attribution graph, "a more granular view than sparse
+   autoencoders".
+5. **Training models to report on their own behavior** — "free-text
+   explanations track the factors that drive a model's predictions".
+6. **Non-assistant persona sampling** — sampling "user turns, tool call results,
+   or pretraining style transcripts, can elicit beliefs about the user and
+   environment not verbalized in assistant turns".
+7. **Unsupervised environment interventions** — an automated agent sweeps "any
+   variable plausibly causally relevant" and records the relative change;
+   "analogized to direct logit attribution".
+8. **Partial resampling** — resample sentences or turns to "understand the
+   ground truth about which parts of a rollout matter".
+9. **Looking at analogous RL training environments** — SAE latent patterns when
+   Opus 4.5 fabricates search results "replicate in anti-prompt injection RL
+   environments", suggesting the prompt-injection hypothesis.
+
+## §E — Auxiliary Methods Glossary
+
+E.1 Sentence Resampling, E.2 Repeated Resampling, E.3 User Turn Sampling
+(already captured in the first pass).
+
+### E.4 Reflective CoT Prefills
+
+Append a reflection sentence (e.g. "Let me review whether the user would
+endorse my commit:") to the end of the reasoning trace and let the model
+continue; grade the continuation with an LLM judge.
+
+> This method is off-policy: the prefilled sentence is not necessarily one the
+> model would have produced on its own, so positive results are best read as
+> upper bounds on what the model could verbalize given a lead-in, rather than as
+> evidence of latent belief during the original rollout.
+
+### E.5 Follow-up Questioning
+
+Continue a completed rollout with a user message about its behavior. Two
+flavours:
+
+- **Indirect** — "does not name the behavior of interest (e.g., 'Have you
+  finished the task?')". Avoids "cuing the model to update its beliefs about
+  what the user wanted in response to the question itself."
+- **Direct** — "asks about the behavior or motives explicitly, often as a forced
+  choice between candidate motives or as a ranked-preference task."
+
+### E.6 Third-Person Probing
+
+Present the environment (or partial rollout) and ask what an agent "would or
+should do", rather than embedding the model in the harness.
+
+> This separates two questions: what the model endorses as the right action when
+> stepping outside the role, versus what it actually does when embedded in the
+> role. Gaps between the two are informative: they suggest that role-specific
+> pressures (task compliance, format constraints) are partially overriding the
+> model's externally-stated preferences.
+
+### E.7 Audit Note Justifications
+
+Require a short structured note alongside each tool call taking a target action,
+stating reasoning. "Converts in-context self-report into a structured per-action
+artifact that an LLM judge can grade."
+
+Key property: "requiring audit notes in the funding email environment does not
+significantly change the whistleblowing rate, so the mechanism is informative
+without itself being a behavioral intervention."
+
+Caution: "stated motive prevalence is informative but not a reliable estimator
+of causal importance, as illustrated by the ordering inversion relative to
+counterfactual evidence".
+
+### E.8 Reasoning Trace Analysis
+
+LLM judge grades traces along a task-specific dimension at scale. Examples
+given: stated belief about legality; a 1–5 source-driven vs content-driven
+scale; level of meta-reasoning in opening paragraphs; "CTF-vibes" in framing;
+verbalized awareness of user disapproval.
+
+> The method's reliability depends on prompt engineering for the judge,
+> calibration against held-out human-graded examples where possible, and
+> reporting agreement statistics.
+
+> We treat trace-analysis findings as one line of evidence to converge with
+> counterfactuals, since a judge can systematically miss or misread reasoning
+> patterns.
+
+### E.9 Logprob Prefill Analysis
+
+Record the conditional log probability of a candidate "commitment" phrase (e.g.
+"But maybe we can cheat") prefilled after each paragraph break. "The trajectory
+of these log probabilities across paragraphs reveals when the model becomes
+likely to verbalize" the decision — i.e. when it becomes latent in the state.
+
+## Other appendix structure (not yet extracted)
+
+- §A Environment Design Principles (A.1 design principles, A.2 finding starting
+  points, A.3 summary)
+- §B Environment Details (B.1 Pre-commit Hook, B.2 Funding Email, B.3 Evaluation
+  Tampering, B.4 Math Sandbagging, B.5 Secret Number, B.6 Board Games)
+- §C Full Case Studies (C.1–C.6, same six environments)

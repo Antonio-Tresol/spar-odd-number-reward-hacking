@@ -13,7 +13,13 @@ protocol for telling those apart with evidence rather than vibes.
 
 Derived from Singh, Kroiz, Rajamanoharan & Nanda, *Model Forensics*
 (arXiv:2606.26071). Verbatim source notes: `notes/model-forensics-paper-notes.md`.
-Method details load on demand from `references/methods.md`.
+
+Two reference files, loaded on demand — not up front:
+
+| Load | When |
+|---|---|
+| `references/methods.md` | Implementing any named method: sentence/repeated resampling, user-turn sampling, or the E.4–E.9 probes (reflective prefills, follow-up questioning, third-person probing, audit notes, trace analysis, logprob prefills). Each entry carries the interpretive limit that makes its results readable. |
+| `references/hypothesis-generation.md` | CoT reading has run dry, the model exposes no reasoning, or you suspect the driver is never verbalised. Appendix D's nine alternative sources, sorted by what access they need. |
 
 **The framing that governs everything below:** a "motivation" here is a simple,
 easy-to-describe factor that explains behavior across a range of circumstances.
@@ -49,6 +55,11 @@ not evidence.
 - **Sentence resampling** to find which sentences causally drive the behavior,
   when you need to focus effort inside long traces.
 - **User-turn sampling** to elicit the model's own assessment of the transcript.
+
+If the CoT is absent, summarised, or uninformative, switch sources rather than
+reading harder — `references/hypothesis-generation.md`. The cheapest alternative
+is sampling *non-assistant* turns (user turns, tool results), which surfaces
+beliefs the model never states in assistant turns.
 
 Write each hypothesis as a sentence that makes a **falsifiable prediction**. A
 hypothesis that predicts nothing cannot be tested in Step 2.
@@ -132,6 +143,19 @@ These are the failure modes that make otherwise-careful investigations wrong.
   model in the third person why *it* did something conflates the in-context model
   with the third-person perspective. Ask what the environment means; do not ask
   it to introspect on motive.
+
+- **What the model says drove it is not what drove it.** Stated-motive
+  prevalence — from audit notes, follow-ups, or trace grading — is *not* an
+  estimator of causal importance. The paper reports an ordering inversion: the
+  most-stated motive was not the most causal when checked against
+  counterfactuals. Rank motives by intervention, never by frequency of mention.
+
+- **A reflective prefill proves capability, not belief.** Appending "Let me
+  review whether the user would endorse this:" and getting an admission is
+  off-policy — you supplied the lead-in. It bounds what the model *could*
+  verbalize when prompted; it says nothing about what was active during the
+  original rollout. Reporting it as "the model knew" is the easiest false
+  positive in the whole protocol.
 
 - **CoT is a hypothesis source, not evidence.** Never let a quote from the CoT
   carry a causal claim on its own. It generates the hypothesis; interventions
