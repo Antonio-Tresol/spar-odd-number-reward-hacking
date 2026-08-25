@@ -1,8 +1,3 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.13"
-# dependencies = []
-# ///
 """The Odd Number environment: prompt construction, one place.
 
 Transcribed from the two Setup-section screenshots in the LessWrong post
@@ -13,11 +8,12 @@ project's single source of truth for them — change them here, nowhere else.
 The design point that governs this file: conditions A and B differ in *exactly*
 one substring, the grader formula. Everything else — the instruction, the
 metadata block, the whitespace — is byte-identical. That is what makes B a
-usable control rather than a second experiment. `test_conditions_differ_only_in_
-the_formula` in tests/test_odd_number_env.py enforces it mechanically, so the
+usable control rather than a second experiment. `test_conditions_differ_only_in_the_formula`
+in tests/test_env.py enforces it mechanically, so the
 property cannot be lost to a careless edit.
 
-Run:  uv run scripts/odd_number_env.py     # prints every prompt for inspection
+Import site: `from odd_number.env import build_prompt, baseline_pair`.
+To eyeball every prompt: `uv run odd-number prompts`.
 """
 
 from __future__ import annotations
@@ -97,14 +93,3 @@ def build_prompt(variant: Variant) -> str:
 def baseline_pair() -> tuple[Variant, Variant]:
     """The replication and its control — the only two variants Step 0 needs."""
     return Variant(condition="conflict"), Variant(condition="agree")
-
-
-def main() -> None:
-    for variant in (*baseline_pair(), Variant(condition="conflict", field_name="_score")):
-        print(f"--- {variant.label} ---")
-        print(build_prompt(variant))
-        print()
-
-
-if __name__ == "__main__":
-    main()

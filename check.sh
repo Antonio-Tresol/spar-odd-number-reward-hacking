@@ -20,9 +20,11 @@ uvx ruff format --check . && uvx ruff check --select I .
 PYTHONPATH=. uvx lanorme check "${1:-.}"
 
 if [[ -d tests ]]; then
-    # httpx: the collection runner's one dependency, so its retry tests can
-    # import the exception types they assert on.
-    uv run --with pytest --with lanorme --with httpx pytest tests -q
+    # pytest and the project's own deps come from pyproject.toml (dev group and
+    # [project.dependencies]), and uv installs the package itself, so the tests
+    # import `odd_number.*` normally. lanorme stays a --with because only the
+    # harness's own plugin tests need it.
+    uv run --with lanorme pytest tests -q
 fi
 
 if [[ -f TREE.md ]]; then

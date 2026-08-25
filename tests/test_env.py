@@ -1,8 +1,3 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.13"
-# dependencies = ["pytest>=8.0"]
-# ///
 """Tests for the Odd Number prompt construction.
 
 The load-bearing test here is `test_conditions_differ_only_in_the_formula`. The
@@ -11,17 +6,12 @@ makes the two conditions differ in some second way, every effect size measured
 against that control silently becomes uninterpretable. That is exactly the class
 of bug that does not announce itself, so it gets a test.
 
-Run:  uv run tests/test_odd_number_env.py
+Run:  uv run pytest tests/test_env.py
 """
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-
-from odd_number_env import (  # noqa: E402
+from odd_number.env import (
     FORMULA_AGREE,
     FORMULA_CONFLICT,
     INSTRUCTION,

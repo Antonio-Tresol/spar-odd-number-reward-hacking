@@ -24,9 +24,30 @@ only to record what is true.
   `skill_portability`) followed by the research-integrity gate. Run after
   editing any skill, script, or pipeline.
 
-All scripts are self-contained PEP 723 uv scripts (inline dependencies, no venv
-to manage) and use type hints throughout. New scripts in this project should
-follow the same convention.
+Two kinds of Python live here, and they follow different rules.
+
+- **The harness's own tooling** (`scripts/validate_research.py`,
+  `scripts/run_skill_evals.py`, and the skills' `references/*.py`) stays
+  self-contained PEP 723 uv scripts — inline dependencies, no venv, runnable
+  from any checkout. Leave them that way.
+- **This project's research code** is a package: `src/odd_number/`, declared in
+  `pyproject.toml`. `uv run` installs it, so tests and modules import
+  `odd_number.*` directly — no `sys.path` manipulation anywhere. One CLI is the
+  front door:
+
+  ```
+  uv run odd-number prompts                    # print every prompt variant
+  uv run odd-number collect --mock --n 5       # no API key needed
+  uv run odd-number collect --model deepseek/deepseek-r1 --n 40
+  uv run odd-number grade results/<file>.jsonl
+  ```
+
+  Modules are importable library code with no import-time side effects;
+  argument parsing lives only in `cli.py`. Type hints throughout.
+
+The split is deliberate: a promoted pipeline that other code imports and tests
+exercise wants to be a package, while a validator that must run in a repo with
+no venv wants to be a standalone script.
 
 ## The workflow
 

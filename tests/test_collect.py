@@ -1,8 +1,3 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.13"
-# dependencies = ["pytest>=8.0", "httpx>=0.27"]
-# ///
 """Tests for the collection runner: retry policy and resume bookkeeping.
 
 The retry tests matter more than they look. A retry loop that retries a 401
@@ -13,27 +8,23 @@ under happy-path testing, so both are asserted here directly.
 No test sleeps: `time.sleep` is monkeypatched and the requested delays are
 recorded, which also lets the backoff bounds be asserted rather than eyeballed.
 
-Run:  uv run tests/test_run_odd_number.py
+Run:  uv run pytest tests/test_collect.py
 """
 
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import httpx
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-
-from run_odd_number import (  # noqa: E402
+from odd_number.collect import done_keys, seed_for
+from odd_number.retry import (
     RETRYABLE_STATUS,
     RetryPolicy,
     TransientError,
     classify_failure,
-    done_keys,
-    seed_for,
     with_retries,
 )
 
@@ -48,7 +39,7 @@ def status_error(code: int, headers: dict[str, str] | None = None) -> httpx.HTTP
 def no_sleep(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     """Record requested sleeps instead of performing them."""
     recorded: list[float] = []
-    monkeypatch.setattr("run_odd_number.time.sleep", recorded.append)
+    monkeypatch.setattr("odd_number.retry.time.sleep", recorded.append)
     return recorded
 
 
