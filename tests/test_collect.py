@@ -1,12 +1,15 @@
-"""Tests for the collection runner: retry policy and resume bookkeeping.
+"""Tests for collection: retry policy, resume bookkeeping, and seeds.
 
-The retry tests matter more than they look. A retry loop that retries a 401
+What is tested here is *policy*, not tenacity. A retry loop that retries a 401
 turns one wrong key into six wrong keys and a long wait; a loop that *doesn't*
 retry a 429 throws away a paid run on a rate limit. Both failures are silent
-under happy-path testing, so both are asserted here directly.
+under happy-path testing, so the classification and the backoff choice are
+asserted directly. Attempt counting and exhaustion semantics belong to tenacity
+and are not re-tested.
 
-No test sleeps: `time.sleep` is monkeypatched and the requested delays are
-recorded, which also lets the backoff bounds be asserted rather than eyeballed.
+No test sleeps: tenacity's `sleep` is injected via `retry_with(sleep=...)`,
+which records the requested delays and lets the backoff be asserted rather than
+eyeballed.
 
 Run:  uv run pytest tests/test_collect.py
 """
@@ -18,14 +21,16 @@ from pathlib import Path
 
 import httpx
 import pytest
+from tenacity import stop_after_attempt
 
 from odd_number.collect import done_keys, seed_for
 from odd_number.retry import (
+    MAX_DELAY,
     RETRYABLE_STATUS,
-    RetryPolicy,
     TransientError,
+    api_retry,
+    as_transient,
     classify_failure,
-    with_retries,
 )
 
 
@@ -35,12 +40,23 @@ def status_error(code: int, headers: dict[str, str] | None = None) -> httpx.HTTP
     return httpx.HTTPStatusError(f"HTTP {code}", request=request, response=response)
 
 
-@pytest.fixture
-def no_sleep(monkeypatch: pytest.MonkeyPatch) -> list[float]:
-    """Record requested sleeps instead of performing them."""
-    recorded: list[float] = []
-    monkeypatch.setattr("odd_number.retry.time.sleep", recorded.append)
-    return recorded
+def make_flaky(failures: int, exc_factory=lambda: status_error(503)):
+    """A decorated callable that fails `failures` times, then succeeds.
+
+    Decorated exactly as the real `call_model` is, so the test exercises the
+    same stack rather than a lookalike.
+    """
+    calls = {"n": 0}
+
+    @api_retry
+    @as_transient
+    def flaky() -> dict[str, object]:
+        calls["n"] += 1
+        if calls["n"] <= failures:
+            raise exc_factory()
+        return {"ok": calls["n"]}
+
+    return flaky, calls
 
 
 # --- classification ------------------------------------------------------
@@ -77,73 +93,76 @@ def test_http_date_retry_after_falls_back_to_computed_backoff() -> None:
     assert converted.retry_after is None
 
 
-# --- backoff -------------------------------------------------------------
+def test_classify_returns_the_same_object_for_permanent_errors() -> None:
+    """`as_transient` uses identity to decide whether to re-raise untouched."""
+    exc = status_error(401)
+    assert classify_failure(exc) is exc
+
+
+# --- backoff policy ------------------------------------------------------
 
 
 def test_server_retry_after_overrides_computed_backoff() -> None:
-    assert RetryPolicy().delay_for(attempt=0, retry_after=12.0) == 12.0
+    slept: list[float] = []
+    flaky, _ = make_flaky(2, lambda: status_error(429, {"retry-after": "7"}))
+    flaky.retry_with(sleep=slept.append)()
+    assert slept == [7.0, 7.0]
 
 
-def test_retry_after_is_still_capped() -> None:
-    """Obey the server, but never sleep past max_delay on one attempt."""
-    policy = RetryPolicy(max_delay=30.0)
-    assert policy.delay_for(attempt=0, retry_after=9999.0) == 30.0
+def test_retry_after_is_capped_at_max_delay() -> None:
+    """Obey the server, but never sleep past MAX_DELAY on one attempt."""
+    slept: list[float] = []
+    flaky, _ = make_flaky(1, lambda: status_error(429, {"retry-after": "9999"}))
+    flaky.retry_with(sleep=slept.append)()
+    assert slept == [MAX_DELAY]
 
 
-def test_full_jitter_stays_within_the_exponential_cap() -> None:
-    policy = RetryPolicy(base_delay=1.0, max_delay=60.0)
-    for attempt in range(6):
-        cap = min(1.0 * (2**attempt), 60.0)
-        for _ in range(50):
-            assert 0.0 <= policy.delay_for(attempt) <= cap
+def test_backoff_without_retry_after_is_jittered_and_bounded() -> None:
+    """Full jitter: every delay in [0, cap], and not a constant.
+
+    A fixed backoff would make simultaneously rate-limited callers retry in
+    lockstep and re-trigger the limit, so the randomness is the point.
+    """
+    seen: list[float] = []
+    for _ in range(30):
+        slept: list[float] = []
+        flaky, _ = make_flaky(3)  # 503, no retry-after header
+        flaky.retry_with(sleep=slept.append)()
+        assert len(slept) == 3
+        for attempt, delay in enumerate(slept):
+            assert 0.0 <= delay <= min(1.0 * (2**attempt), MAX_DELAY)
+        seen.extend(slept)
+    assert len(set(seen)) > 1, "delays are constant — jitter is not being applied"
 
 
-# --- the retry loop ------------------------------------------------------
+# --- the retry loop (integration with tenacity) --------------------------
 
 
-def test_succeeds_after_transient_failures(no_sleep: list[float]) -> None:
-    calls = {"n": 0}
-
-    def flaky() -> dict[str, object]:
-        calls["n"] += 1
-        if calls["n"] < 3:
-            raise status_error(503)
-        return {"ok": True}
-
-    assert with_retries(flaky, RetryPolicy(), "label") == {"ok": True}
+def test_succeeds_after_transient_failures() -> None:
+    slept: list[float] = []
+    flaky, calls = make_flaky(2)
+    assert flaky.retry_with(sleep=slept.append)() == {"ok": 3}
     assert calls["n"] == 3
-    assert len(no_sleep) == 2  # slept between attempts, not after the success
+    assert len(slept) == 2  # slept between attempts, not after the success
 
 
-def test_permanent_error_is_raised_immediately_without_sleeping(
-    no_sleep: list[float],
-) -> None:
-    calls = {"n": 0}
-
-    def unauthorized() -> dict[str, object]:
-        calls["n"] += 1
-        raise status_error(401)
-
+def test_permanent_error_is_raised_immediately_without_sleeping() -> None:
+    slept: list[float] = []
+    flaky, calls = make_flaky(99, lambda: status_error(401))
     with pytest.raises(httpx.HTTPStatusError):
-        with_retries(unauthorized, RetryPolicy(), "label")
+        flaky.retry_with(sleep=slept.append)()
     assert calls["n"] == 1
-    assert no_sleep == []
+    assert slept == []
 
 
-def test_exhausting_attempts_raises_and_uses_the_whole_budget(
-    no_sleep: list[float],
-) -> None:
-    calls = {"n": 0}
-
-    def always_429() -> dict[str, object]:
-        calls["n"] += 1
-        raise status_error(429)
-
-    policy = RetryPolicy(max_attempts=4)
-    with pytest.raises(RuntimeError, match="exhausted 4 attempts"):
-        with_retries(always_429, policy, "label")
+def test_exhausting_attempts_reraises_the_underlying_error() -> None:
+    """reraise=True: the caller sees the real failure, not a RetryError wrapper."""
+    slept: list[float] = []
+    flaky, calls = make_flaky(99, lambda: status_error(429))
+    with pytest.raises(TransientError, match="HTTP 429"):
+        flaky.retry_with(stop=stop_after_attempt(4), sleep=slept.append)()
     assert calls["n"] == 4
-    assert len(no_sleep) == 3  # no sleep after the final failure
+    assert len(slept) == 3  # no sleep after the final failure
 
 
 # --- resume bookkeeping --------------------------------------------------
@@ -166,7 +185,7 @@ def test_done_keys_tolerates_a_torn_final_line(tmp_path: Path) -> None:
     """A hard kill mid-write must not make the whole results file unreadable."""
     path = tmp_path / "r.jsonl"
     path.write_text(
-        json.dumps({"variant": "agree-grader", "index": 0, "error": None}) + "\n{\"var",
+        json.dumps({"variant": "agree-grader", "index": 0, "error": None}) + '\n{"var',
         encoding="utf-8",
     )
     assert done_keys(path) == {("agree-grader", 0)}

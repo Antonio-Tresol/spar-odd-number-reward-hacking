@@ -27,7 +27,7 @@ from typing import Any, Final
 import httpx
 
 from .env import Variant, build_prompt
-from .retry import RetryPolicy, with_retries
+from .retry import api_retry, as_transient
 
 ENDPOINT: Final[str] = "https://openrouter.ai/api/v1/chat/completions"
 TIMEOUT: Final[float] = 300.0
@@ -109,8 +109,14 @@ def mock_response(prompt: str, seed: int) -> tuple[str, str]:
     return str(number), reasoning + f"Therefore {number}."
 
 
+@api_retry
+@as_transient
 def call_model(client: httpx.Client, model: str, prompt: str) -> dict[str, Any]:
-    """One chat completion. Raises on HTTP error so `with_retries` can classify."""
+    """One chat completion, retrying transient failures.
+
+    The decorators do the work: `as_transient` turns retryable httpx errors into
+    TransientError, `api_retry` retries exactly that with jittered backoff.
+    """
     response = client.post(
         ENDPOINT,
         headers={"Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}"},
@@ -139,8 +145,8 @@ def extract(payload: dict[str, Any]) -> tuple[str, str, str, dict[str, Any]]:
 def run_one(client: httpx.Client | None, variant: Variant, index: int, model: str) -> Rollout:
     """Collect a single rollout, capturing errors rather than raising.
 
-    Transient failures are retried inside `with_retries`; only an exhausted
-    retry budget or a permanent error (400/401/403) reaches the `error` field.
+    `call_model` retries transient failures itself; only an exhausted retry
+    budget or a permanent error (400/401/403) reaches the `error` field.
     """
     prompt = build_prompt(variant)
     seed = seed_for(variant.label, index)
@@ -153,11 +159,7 @@ def run_one(client: httpx.Client | None, variant: Variant, index: int, model: st
             response, reasoning = mock_response(prompt, seed)
             finish = "stop"
         else:
-            payload = with_retries(
-                lambda: call_model(client, model, prompt),
-                RetryPolicy(),
-                f"{variant.label}#{index}",
-            )
+            payload = call_model(client, model, prompt)
             response, reasoning, finish, usage = extract(payload)
     except Exception as exc:  # noqa: BLE001 — recorded, not swallowed
         error = f"{type(exc).__name__}: {exc}"
