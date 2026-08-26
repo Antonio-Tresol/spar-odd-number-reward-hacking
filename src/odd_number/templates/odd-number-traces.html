@@ -178,6 +178,7 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
   <div class="spacer"></div>
   <span class="seg" role="group" aria-label="Which panes to show"><button data-focus="" aria-pressed="true" title="all three panes">All</button><button data-focus="explore" title="only the landscape and filters">Explore</button><button data-focus="selection" title="only the selection">Selection</button><button data-focus="read" title="only the open trace">Reader</button></span>
   <span class="seg" role="group" aria-label="Text size"><button id="size-down" title="smaller text">A−</button><button id="size-up" title="larger text">A+</button></span>
+  <span class="seg" role="group" aria-label="Theme"><button data-theme-choice="" aria-pressed="true" title="follow the system">Auto</button><button data-theme-choice="light">Light</button><button data-theme-choice="dark">Dark</button></span>
   <button class="tb" id="btn-start" aria-pressed="true">Start here</button>
   <button class="tb" id="btn-clear">Clear selection</button>
   <span class="hint">Drag the bars between panes to resize.</span>
@@ -527,6 +528,9 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
   document.getElementById('size-down').addEventListener('click', () => { base = Math.max(11, base - 1); applyBase(); });
   document.getElementById('size-up').addEventListener('click', () => { base = Math.min(22, base + 1); applyBase(); });
   if (base !== 14) applyBase();
+  const applyTheme = choice => { if (choice) document.documentElement.setAttribute('data-theme', choice); else document.documentElement.removeAttribute('data-theme'); document.querySelectorAll('[data-theme-choice]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.themeChoice === choice))); };
+  document.querySelectorAll('[data-theme-choice]').forEach(b => b.addEventListener('click', () => { applyTheme(b.dataset.themeChoice); store.set('odd-number-theme', b.dataset.themeChoice); }));
+  const savedTheme = store.get('odd-number-theme'); if (savedTheme) applyTheme(savedTheme);
 
   buildControls();
   const t0 = readHash();
