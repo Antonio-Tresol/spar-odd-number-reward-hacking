@@ -76,6 +76,13 @@ def test_an_oversized_trace_is_a_chunk_of_its_own_not_cut() -> None:
     assert [[t.index for t in c.traces] for c in chunks] == [[0], [1], [2]]
 
 
+def test_a_trace_id_names_its_file_treatment_and_index() -> None:
+    trace = make_trace(
+        24, 5, treatment="conflict-grader-p1", file="odd-number-moonshotai-kimi-k3-p1.jsonl"
+    )
+    assert trace.id == "moonshotai-kimi-k3-p1--conflict-grader-p1--24"
+
+
 def test_chunk_ids_are_unique_and_name_their_source() -> None:
     traces = [make_trace(i, 60, file="odd-number-qwen-qwen3.8-27b.jsonl") for i in range(4)]
     ids = [c.id for c in chunk_traces(traces, max_chars=130)]

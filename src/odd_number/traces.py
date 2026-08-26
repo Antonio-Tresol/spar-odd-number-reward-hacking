@@ -59,6 +59,15 @@ class Trace:
     def chars(self) -> int:
         return len(self.reasoning) + len(self.response)
 
+    @property
+    def id(self) -> str:
+        """Stable, human-readable and unique: results-file stem, treatment, index."""
+        return f"{file_stem(self.file)}--{self.treatment}--{self.index}"
+
+
+def file_stem(file: str) -> str:
+    return file.removesuffix(".jsonl").removeprefix("odd-number-")
+
 
 @dataclass(frozen=True, slots=True)
 class TraceChunk:
@@ -133,8 +142,7 @@ def load_traces(results_dir: Path) -> list[Trace]:
 
 
 def chunk_id(file: str, treatment: str, part: int, parts: int) -> str:
-    stem = file.removesuffix(".jsonl").removeprefix("odd-number-")
-    return f"{stem}--{treatment}--{part}of{parts}"
+    return f"{file_stem(file)}--{treatment}--{part}of{parts}"
 
 
 def chunk_traces(traces: list[Trace], max_chars: int = DEFAULT_MAX_CHARS) -> list[TraceChunk]:

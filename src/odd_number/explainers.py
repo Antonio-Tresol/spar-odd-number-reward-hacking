@@ -95,6 +95,7 @@ def load_syntheses(readings_dir: Path, syntheses_dir: Path) -> list[Synthesis]:
 
 def describe_trace(trace: Trace, reading: Reading | None) -> dict[str, Any]:
     return {
+        "id": trace.id,
         "file": trace.file,
         "model": trace.model,
         "treatment": trace.treatment,

@@ -169,6 +169,14 @@ pre.trace mark { background: var(--mark); color: var(--mark-ink); padding: 0 1px
 details.prompt pre { max-height: 220px; overflow: auto; }
 details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82rem; }
 .empty { color: var(--muted); padding: 40px 18px; text-align: center; font-size: .9rem; }
+.cw { position: relative; }
+.copy { font-size: .68rem; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 4px; padding: 1px 8px; line-height: 1.5; }
+.copy:hover { color: var(--ink); border-color: var(--accent); }
+.copy.done { color: var(--even); border-color: var(--even); }
+.cw > .copy { position: absolute; top: 6px; right: 6px; }
+.cw > pre.trace { padding-right: 64px; }
+.idline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; font-family: var(--mono); font-size: .74rem; color: var(--muted); }
+.idline code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; color: var(--ink); user-select: all; }
 .empty b { display: block; font-family: var(--display); font-size: 1.3rem; color: var(--ink); margin-bottom: 6px; }
 </style>
 
@@ -242,7 +250,7 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
     <div class="block" id="summary"></div>
     <div class="block" id="context"></div>
     <div class="block" id="listblock">
-      <div class="list-head"><span id="count"></span><span style="flex:1"></span><label>sort <select id="sort"><option value="index">by index</option><option value="chars-desc">longest first</option><option value="chars-asc">shortest first</option><option value="odd">odd first</option></select></label></div>
+      <div class="list-head"><span id="count"></span><span style="flex:1"></span><button class="copy" id="copy-selection" title="ids, answers, lengths and reader labels of every trace in the selection">copy selection as JSON</button><label>sort <select id="sort"><option value="index">by index</option><option value="chars-desc">longest first</option><option value="chars-asc">shortest first</option><option value="odd">odd first</option></select></label></div>
       <div class="list" id="list"></div>
       <button class="more" id="more" hidden>Show more</button>
     </div>
@@ -259,6 +267,25 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
   const T = DATA.traces, CELLS = DATA.cells, SYN = DATA.syntheses;
   const key = t => `${t.file}|${t.treatment}|${t.index}`;
   const byKey = new Map(T.map(t => [key(t), t]));
+  const byId = new Map(T.map(t => [t.id, t]));
+  function copyText(text, btn) {
+    const done = () => { if (!btn) return; const label = btn.textContent; btn.textContent = 'copied'; btn.classList.add('done'); setTimeout(() => { btn.textContent = label; btn.classList.remove('done'); }, 1200); };
+    const fallback = () => { const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) { /* nothing to do */ } ta.remove(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+  }
+  function traceMarkdown(t, cell, n) {
+    const lines = [`# ${t.id}`, '', `- model: ${t.model}`, `- results file: ${t.file}`, `- treatment: ${t.treatment}`, `- index: ${t.index}`, `- answer: ${t.number ?? 'no answer'} (${t.parity}), read by ${t.source}`, `- finish_reason: ${t.finish || '?'}`, `- reasoning chars: ${t.chars}`];
+    if (n) lines.push(`- reader: ${n.reader}`, `- reader labels: ${n.labels.join(', ') || '—'}`, `- reader on the grader: ${n.grader_reading || '—'}`, `- reader on the situation: ${n.situation || '—'}`, `- reader on the decision: ${n.decision || '—'}`, ...(n.interesting ? [`- flagged: ${n.why_interesting || 'yes'}`] : []));
+    lines.push('', '## Prompt', '', '```', cell?.prompt || '', '```', '', '## Chain of thought', '', t.reasoning || '(none returned)', '', '## Response', '', t.response || '(empty)', '');
+    return lines.join('\n');
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.copy'); if (!b) return;
+    if (b.dataset.copyText !== undefined) copyText(b.dataset.copyText, b);
+    else if (b.dataset.copyLink !== undefined) copyText(location.href.split('#')[0] + '#t=' + encodeURIComponent(b.dataset.copyLink), b);
+    else if (b.dataset.copyTarget) { const el = document.getElementById(b.dataset.copyTarget); if (el) copyText(el.innerText, b); }
+    else if (b.id === 'copy-selection') copyText(JSON.stringify(matches.map(t => ({ id: t.id, model: t.model, treatment: t.treatment, index: t.index, answer: t.number, parity: t.parity, reasoning_chars: t.chars, labels: t.note?.labels || [], interesting: !!t.note?.interesting })), null, 1), b);
+  });
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const MODEL_ORDER = ['moonshotai/kimi-k3', 'qwen/qwen3.8-27b', 'qwen/qwen3.5-27b', 'openai/gpt-oss-20b', 'minimax/minimax-m3', 'qwen/qwen3.6-27b', 'google/gemma-4-31b-it', 'deepseek/deepseek-v4-flash', 'z-ai/glm-5.3', 'deepseek/deepseek-r1'];
   const SHORT = { 'moonshotai/kimi-k3': 'Kimi K3', 'qwen/qwen3.8-27b': 'qwen3.8', 'qwen/qwen3.5-27b': 'qwen3.5', 'openai/gpt-oss-20b': 'gpt-oss-20b', 'minimax/minimax-m3': 'MiniMax M3', 'qwen/qwen3.6-27b': 'qwen3.6', 'google/gemma-4-31b-it': 'gemma-4', 'deepseek/deepseek-v4-flash': 'v4-flash', 'z-ai/glm-5.3': 'GLM-5.3', 'deepseek/deepseek-r1': 'r1 (smoke)' };
@@ -343,7 +370,7 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
     // model synthesis or start-here
     if (S.model && SYN[S.model] && !S.treatment && !S.file) parts.push(renderSynthesis(SYN[S.model]));
     else if (S.file && SYN[fileModel(S.file)] && !S.treatment) parts.push(renderSynthesis(SYN[fileModel(S.file)]));
-    if (S.treatment) { const cell = CELLS.find(c => (S.file ? c.file === S.file : !S.model || c.model === S.model) && c.treatment === S.treatment) || CELLS.find(c => c.treatment === S.treatment); if (cell) parts.unshift(`<h2>Prompt <small>every trace under <span class="mono">${esc(S.treatment)}</span> saw exactly this${suffixOf(S.file) === 'vendor-sampling' ? ', sampled at top_p 0.95 / top_k 20' : ''}</small></h2><pre class="trace" style="font-size:.76rem;margin-bottom:16px">${esc(cell.prompt)}</pre>`); }
+    if (S.treatment) { const cell = CELLS.find(c => (S.file ? c.file === S.file : !S.model || c.model === S.model) && c.treatment === S.treatment) || CELLS.find(c => c.treatment === S.treatment); if (cell) parts.unshift(`<h2>Prompt <small>every trace under <span class="mono">${esc(S.treatment)}</span> saw exactly this${suffixOf(S.file) === 'vendor-sampling' ? ', sampled at top_p 0.95 / top_k 20' : ''}</small></h2><div class="cw" style="margin-bottom:16px"><pre class="trace" style="font-size:.76rem" id="blk-cell-prompt">${esc(cell.prompt)}</pre><button class="copy" data-copy-target="blk-cell-prompt">copy</button></div>`); }
     if (S.start && !S.model && !S.file && !S.treatment) parts.unshift(renderStart());
     els.context.innerHTML = parts.join('');
     els.context.querySelectorAll('.bin').forEach(b => b.addEventListener('click', () => { const lo = Number(b.dataset.lo), hi = Number(b.dataset.hi); const on = b.classList.contains('on'); S.min = on ? '' : (lo || ''); S.max = on || hi === Infinity ? '' : hi - 1; select(); }));
@@ -355,12 +382,12 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
   function renderSynthesis(s) {
     const ex = (s.exemplars || []).map(e => { const t = findByChunk(e.chunk_id, e.index); return `<div>${t ? `<button data-go='${esc(JSON.stringify({ trace: key(t) }))}' class="${t.parity === 'odd' ? 'odd-l' : ''}">${short(t.model)} · ${t.treatment} · #${t.index} → ${t.number ?? 'no answer'}</button>` : `<span class="mono">${esc(e.chunk_id)} #${e.index}</span>`}<br><span style="color:var(--muted)">${esc(e.why)}</span></div>`; }).join('');
     return `<div class="synth" style="margin-top:14px"><h2>${short(s.model)} — what the synthesis found <small>one Opus agent over every chunk reading for this model</small></h2>
-      <p class="sum">${esc(s.summary)}</p>
+      <div class="cw"><p class="sum" id="blk-summary" style="padding-right:64px">${esc(s.summary)}</p><button class="copy" data-copy-target="blk-summary">copy</button></div>
       <div class="eyebrow" style="margin:12px 0 4px">Hypotheses, ranked</div>
       ${s.hypotheses.map(h => `<div class="hyp"><div class="claim">${esc(h.claim)}<span class="conf">${esc(h.confidence)}</span></div><details><summary>evidence, and what cuts against it</summary><p><b>For:</b> ${esc(h.evidence)}</p><p><b>Against:</b> ${esc(h.against)}</p></details></div>`).join('')}
       <div class="eyebrow" style="margin:12px 0 6px">Read these first</div><div class="ex">${ex}</div>
       ${s.grading_issues.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--accent);font-size:.84rem">What it said about our data and grading (${s.grading_issues.length})</summary><ul style="padding-left:18px;font-size:.82rem;color:var(--muted)">${s.grading_issues.map(g => `<li>${esc(g)}</li>`).join('')}</ul></details>` : ''}
-      <details class="doc" style="margin-top:10px"><summary>Full synthesis document</summary><div class="md">${s.markdown_html}</div></details></div>`;
+      <details class="doc" style="margin-top:10px"><summary>Full synthesis document</summary><div class="cw" style="margin-top:6px"><button class="copy" data-copy-target="blk-doc" style="position:static;margin-bottom:6px">copy document text</button><div class="md" id="blk-doc">${s.markdown_html}</div></div></details></div>`;
   }
   function findByChunk(chunkId, index) {
     const [stem, treatment] = chunkId.split('--');
@@ -427,16 +454,18 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
     els.read.innerHTML = `<div class="reader">
       <div class="head"><h2>${short(t.model)} · ${esc(t.treatment)} · #${t.index}</h2><span class="pill ${t.parity}">${t.number ?? 'no answer'} · ${t.parity}</span>
         <div class="navb"><button id="prev" ${i <= 0 ? 'disabled' : ''}>← prev</button><button id="next" ${i < 0 || i >= matches.length - 1 ? 'disabled' : ''}>next →</button></div>
-        <div class="meta">${esc(t.file)} · ${t.chars.toLocaleString()} reasoning chars · finish ${esc(t.finish || '?')} · answer read by ${esc(t.source)}${n ? ` · reader ${esc(n.reader.replace('claude-', ''))}` : ''}${i >= 0 ? ` · ${i + 1} of ${matches.length} in selection` : ''}</div></div>
-      <h3>Prompt${suffixOf(t.file) === 'vendor-sampling' ? ' <span style="text-transform:none;letter-spacing:0">· sampled at top_p 0.95 / top_k 20</span>' : ''}</h3><pre class="trace" style="font-size:.76rem">${esc(cell?.prompt || '')}</pre>
-      ${n ? `<h3>Reader's note</h3><dl class="note"><dt>Grader</dt><dd>${esc(n.grader_reading || '—')} <span class="chip">${esc(n.reads_grader || '?')}</span></dd><dt>Situation</dt><dd>${esc(n.situation || '—')}</dd><dt>Decision</dt><dd>${esc(n.decision || '—')}</dd><dt>Labels</dt><dd><div class="labels">${n.labels.map(l => `<button class="chip" data-label="${esc(l)}">${esc(l)}</button>`).join('')}</div></dd>${n.interesting ? `<dt>Flagged</dt><dd>${esc(n.why_interesting || 'worth a human\'s time')}</dd>` : ''}${missed ? `<dt>Note</dt><dd style="color:var(--muted)">${missed} of the reader's ${quotes.length} quotes are not verbatim in this trace.</dd>` : ''}</dl>` : '<p class="help">No reader note for this trace.</p>'}
-      <h3>Chain of thought${quotes.length ? ' <span style="text-transform:none;letter-spacing:0">· reader quotes highlighted</span>' : ''}</h3><pre class="trace">${t.reasoning ? mark(t.reasoning) : '(no chain of thought was returned)'}</pre>
-      <h3>Response</h3><pre class="trace">${t.response ? mark(t.response) : '(empty)'}</pre>
+        <div class="meta">${esc(t.file)} · ${t.chars.toLocaleString()} reasoning chars · finish ${esc(t.finish || '?')} · answer read by ${esc(t.source)}${n ? ` · reader ${esc(n.reader.replace('claude-', ''))}` : ''}${i >= 0 ? ` · ${i + 1} of ${matches.length} in selection` : ''}</div>
+        <div class="idline">id <code id="trace-id">${esc(t.id)}</code><button class="copy" data-copy-text="${esc(t.id)}">copy id</button><button class="copy" data-copy-link="${esc(t.id)}">copy link</button><button class="copy" id="copy-md">copy trace as Markdown</button></div></div>
+      <h3>Prompt${suffixOf(t.file) === 'vendor-sampling' ? ' <span style="text-transform:none;letter-spacing:0">· sampled at top_p 0.95 / top_k 20</span>' : ''}</h3><div class="cw"><pre class="trace" style="font-size:.76rem" id="blk-prompt">${esc(cell?.prompt || '')}</pre><button class="copy" data-copy-target="blk-prompt">copy</button></div>
+      ${n ? `<h3>Reader's note</h3><div class="cw"><dl class="note" id="blk-note"><dt>Grader</dt><dd>${esc(n.grader_reading || '—')} <span class="chip">${esc(n.reads_grader || '?')}</span></dd><dt>Situation</dt><dd>${esc(n.situation || '—')}</dd><dt>Decision</dt><dd>${esc(n.decision || '—')}</dd><dt>Labels</dt><dd><div class="labels">${n.labels.map(l => `<button class="chip" data-label="${esc(l)}">${esc(l)}</button>`).join('')}</div></dd>${n.interesting ? `<dt>Flagged</dt><dd>${esc(n.why_interesting || 'worth a human\'s time')}</dd>` : ''}${missed ? `<dt>Note</dt><dd style="color:var(--muted)">${missed} of the reader's ${quotes.length} quotes are not verbatim in this trace.</dd>` : ''}</dl><button class="copy" data-copy-target="blk-note">copy</button></div>` : '<p class="help">No reader note for this trace.</p>'}
+      <h3>Chain of thought${quotes.length ? ' <span style="text-transform:none;letter-spacing:0">· reader quotes highlighted</span>' : ''}</h3><div class="cw"><pre class="trace" id="blk-cot">${t.reasoning ? mark(t.reasoning) : '(no chain of thought was returned)'}</pre><button class="copy" data-copy-target="blk-cot">copy</button></div>
+      <h3>Response</h3><div class="cw"><pre class="trace" id="blk-response">${t.response ? mark(t.response) : '(empty)'}</pre><button class="copy" data-copy-target="blk-response">copy</button></div>
 </div>`;
     els.read.scrollTop = 0;
     document.getElementById('prev')?.addEventListener('click', () => openTrace(matches[i - 1]));
     document.getElementById('next')?.addEventListener('click', () => { openTrace(matches[i + 1]); if (i + 1 >= shown) renderList(false); });
     els.read.querySelectorAll('[data-label]').forEach(b => b.addEventListener('click', () => { S.label = b.dataset.label; select(); }));
+    document.getElementById('copy-md').addEventListener('click', ev => copyText(traceMarkdown(t, cell, n), ev.currentTarget));
     renderCrumbs(); writeHash();
   }
 
@@ -480,7 +509,7 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
   function writeHash() {
     const p = new URLSearchParams();
     for (const [id, field] of Object.entries(FIELD)) if (S[field] && S[field] !== 'index') p.set(field, String(S[field]));
-    if (S.trace) p.set('t', S.trace);
+    if (S.trace) p.set('t', byKey.get(S.trace).id);
     history.replaceState(null, '', '#' + p.toString());
   }
   function readHash() {
@@ -535,6 +564,6 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
   buildControls();
   const t0 = readHash();
   select();
-  if (t0 && byKey.has(t0)) openTrace(byKey.get(t0));
+  if (t0) openTrace(byId.get(t0) || byKey.get(t0));
 })();
 </script>
