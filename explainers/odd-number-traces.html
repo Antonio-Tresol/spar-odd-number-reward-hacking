@@ -22,8 +22,8 @@
 }
 * { box-sizing: border-box; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
-html, body { height: 100%; }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 14px; line-height: 1.5; display: grid; grid-template-rows: 50px minmax(0, 1fr); }
+html { height: 100%; font-size: var(--base, 14px); }
+body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 1rem; line-height: 1.5; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 a { color: var(--accent); }
 button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -40,7 +40,12 @@ button.chip:hover { border-color: var(--accent); }
 .chip.on b { color: var(--bg); opacity: .7; }
 
 /* top bar */
-.top { display: flex; align-items: center; gap: 18px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 8px 16px; min-height: 50px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.top .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.top .seg button { border: 0; background: var(--surface); padding: 5px 10px; font-size: .8rem; }
+.top .seg button + button { border-left: 1px solid var(--line); }
+.top .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.top .hint { font-size: .74rem; color: var(--muted); }
 .top .brand { font-family: var(--display); font-weight: 700; font-size: 1.05rem; white-space: nowrap; }
 .top .crumbs { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; color: var(--muted); font-size: .86rem; white-space: nowrap; }
 .top .crumbs b { color: var(--ink); font-weight: 600; }
@@ -50,10 +55,14 @@ button.chip:hover { border-color: var(--accent); }
 .top .tb[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
 /* app */
-.app { display: grid; grid-template-columns: 400px minmax(340px, 1fr) minmax(420px, 1.15fr); min-height: 0; }
-.pane { min-height: 0; overflow: auto; }
-.pane + .pane { border-left: 1px solid var(--line); }
-@media (max-width: 1100px) { body { grid-template-rows: 50px auto; height: auto; } .app { grid-template-columns: 1fr; } .pane { overflow: visible; } .pane + .pane { border-left: 0; border-top: 1px solid var(--line); } }
+.app { display: flex; min-height: 0; }
+.pane { flex: 1 1 0; min-width: 0; min-height: 0; overflow: auto; }
+#explore { flex-basis: 27%; } #selection { flex-basis: 33%; } #read { flex-basis: 40%; }
+.divider { flex: 0 0 7px; cursor: col-resize; background: var(--surface-2); border-left: 1px solid var(--line); border-right: 1px solid var(--line); touch-action: none; }
+.divider:hover, .divider.active { background: var(--accent); }
+.app[data-focus="explore"] > :not(#explore), .app[data-focus="selection"] > :not(#selection), .app[data-focus="read"] > :not(#read) { display: none; }
+.app[data-focus] > .pane { flex-basis: 100%; }
+@media (max-width: 900px) { html, body { height: auto; } body { display: block; } .app { display: block; } .app[data-focus] > .pane { display: none; } .app[data-focus="explore"] > #explore, .app[data-focus="selection"] > #selection, .app[data-focus="read"] > #read { display: block; } .pane { height: auto; overflow: visible; } .divider { display: none; } .pane + .pane { border-top: 1px solid var(--line); } .top { position: sticky; top: 0; z-index: 5; } }
 .block { padding: 14px 16px; border-bottom: 1px solid var(--line); }
 .block h2 { font-size: .98rem; margin-bottom: 8px; }
 .block h2 small { font-family: var(--body); font-weight: 500; color: var(--muted); font-size: .76rem; margin-left: 6px; }
@@ -155,7 +164,7 @@ details.doc summary { cursor: pointer; color: var(--accent); font-weight: 500; }
 .note { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; font-size: .84rem; display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 5px 10px; }
 .note dt { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; padding-top: 2px; }
 .note dd { margin: 0; }
-pre.trace { white-space: pre-wrap; word-wrap: break-word; font-family: var(--mono); font-size: .8rem; line-height: 1.55; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 0; }
+pre.trace { white-space: pre-wrap; word-wrap: break-word; font-family: var(--mono); font-size: var(--trace-size, .8rem); line-height: 1.55; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 0; }
 pre.trace mark { background: var(--mark); color: var(--mark-ink); padding: 0 1px; border-radius: 2px; }
 details.prompt pre { max-height: 220px; overflow: auto; }
 details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82rem; }
@@ -167,8 +176,11 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
   <div class="brand">The Odd Number Traces</div>
   <div class="crumbs" id="crumbs"></div>
   <div class="spacer"></div>
+  <span class="seg" role="group" aria-label="Which panes to show"><button data-focus="" aria-pressed="true" title="all three panes">All</button><button data-focus="explore" title="only the landscape and filters">Explore</button><button data-focus="selection" title="only the selection">Selection</button><button data-focus="read" title="only the open trace">Reader</button></span>
+  <span class="seg" role="group" aria-label="Text size"><button id="size-down" title="smaller text">A−</button><button id="size-up" title="larger text">A+</button></span>
   <button class="tb" id="btn-start" aria-pressed="true">Start here</button>
   <button class="tb" id="btn-clear">Clear selection</button>
+  <span class="hint">Drag the bars between panes to resize.</span>
 </div>
 
 <div class="app">
@@ -224,6 +236,7 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
     </div>
   </div>
 
+  <div class="divider" data-left="explore" data-right="selection" role="separator" aria-orientation="vertical" aria-label="resize explore / selection"></div>
   <div class="pane" id="selection">
     <div class="block" id="summary"></div>
     <div class="block" id="context"></div>
@@ -234,6 +247,7 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
     </div>
   </div>
 
+  <div class="divider" data-left="selection" data-right="read" role="separator" aria-orientation="vertical" aria-label="resize selection / reader"></div>
   <div class="pane" id="read"><div class="empty"><b>Nothing open yet</b>Pick a trace from the list, a cell from the landscape, or a link in the findings. Use J / K to move through the list.</div></div>
 </div>
 
@@ -491,6 +505,28 @@ details.prompt summary { cursor: pointer; color: var(--accent); font-size: .82re
     els['btn-clear'].addEventListener('click', () => { S.trace = null; go({}); S.start = true; select(); els.read.innerHTML = '<div class="empty"><b>Nothing open</b>Pick a trace from the list, a cell from the landscape, or a link in the findings.</div>'; });
     els['btn-start'].addEventListener('click', () => { S.start = true; Object.assign(S, { model: '', file: '', treatment: '' }); select(); document.getElementById('selection').scrollTop = 0; });
   }
+
+  // ---------- layout: resizable panes, focus, text size (per-viewer, browser storage)
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } } };
+  const app = document.querySelector('.app');
+  const panes = { explore: document.getElementById('explore'), selection: document.getElementById('selection'), read: document.getElementById('read') };
+  const saved = store.get('odd-number-panes'); if (saved) { try { const w = JSON.parse(saved); for (const id in w) if (panes[id]) panes[id].style.flexBasis = w[id]; } catch (e) { /* ignore */ } }
+  document.querySelectorAll('.divider').forEach(d => {
+    d.addEventListener('pointerdown', e => {
+      const left = panes[d.dataset.left], right = panes[d.dataset.right];
+      const total = app.clientWidth, lw = left.clientWidth, rw = right.clientWidth, x0 = e.clientX;
+      d.classList.add('active'); d.setPointerCapture(e.pointerId);
+      const move = ev => { const dx = ev.clientX - x0; const nl = Math.max(160, lw + dx), nr = Math.max(160, rw - dx); left.style.flexBasis = (100 * nl / total) + '%'; right.style.flexBasis = (100 * nr / total) + '%'; };
+      const up = () => { d.classList.remove('active'); d.removeEventListener('pointermove', move); d.removeEventListener('pointerup', up); store.set('odd-number-panes', JSON.stringify(Object.fromEntries(Object.entries(panes).map(([k, p]) => [k, p.style.flexBasis || ''])))); };
+      d.addEventListener('pointermove', move); d.addEventListener('pointerup', up);
+    });
+  });
+  document.querySelectorAll('.seg [data-focus]').forEach(b => b.addEventListener('click', () => { const f = b.dataset.focus; if (f) app.setAttribute('data-focus', f); else app.removeAttribute('data-focus'); document.querySelectorAll('.seg [data-focus]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }));
+  let base = Number(store.get('odd-number-base')) || 14;
+  const applyBase = () => { document.documentElement.style.setProperty('--base', base + 'px'); store.set('odd-number-base', String(base)); };
+  document.getElementById('size-down').addEventListener('click', () => { base = Math.max(11, base - 1); applyBase(); });
+  document.getElementById('size-up').addEventListener('click', () => { base = Math.min(22, base + 1); applyBase(); });
+  if (base !== 14) applyBase();
 
   buildControls();
   const t0 = readHash();
