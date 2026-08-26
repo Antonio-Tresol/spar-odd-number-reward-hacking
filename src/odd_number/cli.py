@@ -11,6 +11,8 @@ One CLI, one front door for the package:
     uv run odd-number grade results/<file>.jsonl    # literal answers only, no key
     uv run odd-number grade results/<file>.jsonl --judge   # prose answers via the judge
     uv run odd-number validate-judge                # agreement on hand-labelled fixtures
+    uv run odd-number export-traces --out <dir>     # every trace as Markdown chunks
+    uv run odd-number build-explainer               # explainers/odd-number-traces.html
 
 `collect` refuses models that are not pinned: an unpinned results file would
 look exactly like a pinned one and could not be compared with it.
@@ -35,6 +37,7 @@ from odd_number.environment import (
     baseline_treatments,
     build_prompt,
 )
+from odd_number.explainers import build_trace_explainer
 from odd_number.grades import grade_records, summarise_by_treatment
 from odd_number.pinned_models import (
     HOSTABLE_MODELS,
@@ -52,6 +55,7 @@ from odd_number.rollouts import (
 )
 from odd_number.sampling import DEFAULT_SAMPLING, SamplingParams
 from odd_number.settings import PROJECT_ROOT, MissingSettingsError, Settings, load_settings
+from odd_number.traces import DEFAULT_MAX_CHARS, export_trace_chunks
 
 # Errors in a row before giving up. A bad key or model name fails identically
 # every time, and burning the full budget to prove it is an expensive way to
@@ -329,6 +333,20 @@ def cmd_validate_judge(args: argparse.Namespace) -> int:
     return 0 if agreed == len(verdicts) else 1
 
 
+def cmd_export_traces(args: argparse.Namespace) -> int:
+    """Write every collected trace, graded from cache, as reader-sized Markdown chunks."""
+    paths = export_trace_chunks(args.results_dir, args.out, args.max_chars)
+    print(f"{len(paths)} chunks -> {args.out} (manifest.json alongside)")
+    return 0
+
+
+def cmd_build_explainer(args: argparse.Namespace) -> int:
+    """Build the trace explainer page from results/, results/trace-readings/ and notes/trace-syntheses/."""
+    out = build_trace_explainer(args.results_dir, args.readings_dir, args.syntheses_dir, args.out)
+    print(f"{out} ({out.stat().st_size / 1e6:.1f} MB)")
+    return 0
+
+
 def add_sampling_flags(parser: argparse.ArgumentParser) -> None:
     """SamplingParams overrides. Defaults are stated, not implicit — see sampling.py."""
     parser.add_argument("--temperature", type=float, default=DEFAULT_SAMPLING.temperature)
@@ -405,6 +423,27 @@ def build_parser() -> argparse.ArgumentParser:
     validate = sub.add_parser("validate-judge", help="score the judge on hand-labelled fixtures")
     validate.add_argument("--fixtures", type=Path, default=FIXTURES_PATH)
     validate.set_defaults(func=cmd_validate_judge)
+
+    export = sub.add_parser(
+        "export-traces", help="write every trace as Markdown chunks for reading"
+    )
+    export.add_argument("--results-dir", type=Path, default=PROJECT_ROOT / "results")
+    export.add_argument("--out", type=Path, required=True, help="directory for the chunks")
+    export.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS)
+    export.set_defaults(func=cmd_export_traces)
+
+    explainer = sub.add_parser("build-explainer", help="build the trace explainer page")
+    explainer.add_argument("--results-dir", type=Path, default=PROJECT_ROOT / "results")
+    explainer.add_argument(
+        "--readings-dir", type=Path, default=PROJECT_ROOT / "results" / "trace-readings"
+    )
+    explainer.add_argument(
+        "--syntheses-dir", type=Path, default=PROJECT_ROOT / "notes" / "trace-syntheses"
+    )
+    explainer.add_argument(
+        "--out", type=Path, default=PROJECT_ROOT / "explainers" / "odd-number-traces.html"
+    )
+    explainer.set_defaults(func=cmd_build_explainer)
     return parser
 
 

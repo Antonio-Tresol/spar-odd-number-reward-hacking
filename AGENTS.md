@@ -43,6 +43,8 @@ Two kinds of Python live here, and they follow different rules.
   uv run odd-number collect --model qwen/qwen3.6-27b --n 40
   uv run odd-number audit results/<file>.jsonl # did the pins hold?
   uv run odd-number grade results/<file>.jsonl
+  uv run odd-number export-traces --out <dir>  # every trace as Markdown chunks for reading
+  uv run odd-number build-explainer            # explainers/odd-number-traces.html
   ```
 
   Modules are importable library code with no import-time side effects;
