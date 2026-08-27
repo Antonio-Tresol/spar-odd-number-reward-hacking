@@ -86,6 +86,12 @@ class PinnedModel:
     lens_ckpt_source: str = ""
     effort: str | None = None
     seed_supported: bool = True
+    #: Whether this endpoint forwards a `reasoning` field on an *inbound*
+    #: assistant message, so a rollout can be replayed with the reasoning it
+    #: produced. Verified per endpoint, never assumed: the SDK accepts it
+    #: everywhere and most providers drop it silently, which is indistinguishable
+    #: from a model that cannot recall. Findings: `notes/interview-protocol.md`.
+    replays_reasoning: bool = False
     note: str = ""
 
     @property
@@ -138,6 +144,7 @@ HOSTABLE_MODELS: Final[tuple[PinnedModel, ...]] = (
         lens_ckpt=None,
         lens_ckpt_source="",
         effort=None,
+        replays_reasoning=True,
         note=(
             "Newest open-weights reasoning model among the pinned models (2026-08-14), and the "
             "only 27B Qwen with a bf16 endpoint anywhere (`akashml/bf16`) if the "

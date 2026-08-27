@@ -13,6 +13,12 @@ One CLI, one front door for the package:
     uv run odd-number validate-judge                # agreement on hand-labelled fixtures
     uv run odd-number export-traces --out <dir>     # every trace as Markdown chunks
     uv run odd-number build-explainer               # explainers/odd-number-traces.html
+    uv run odd-number interview --list --model moonshotai/kimi-k3 --parity odd
+    uv run odd-number interview --session k1 --model moonshotai/kimi-k3 \
+        --source odd-number-moonshotai-kimi-k3.jsonl --treatment conflict-grader --index 0
+    uv run odd-number interview --session k1 --observe "bare integer, no hedging" --quote "1"
+    uv run odd-number interview --session k1 --say "Why 7?" --because "tests the reward account"
+    uv run odd-number interview --session k1 --show
 
 `collect` refuses models that are not pinned: an unpinned results file would
 look exactly like a pinned one and could not be compared with it.
@@ -39,6 +45,27 @@ from odd_number.environment import (
 )
 from odd_number.explainers import build_trace_explainer
 from odd_number.grades import grade_records, summarise_by_treatment
+from odd_number.interviews import (
+    SEED_REASONING_MODES,
+    SEED_REASONING_SHOWN,
+    SEED_REASONING_WITHHELD,
+    EmptyRationaleError,
+    Interview,
+    MissingInterviewerError,
+    QuoteNotFoundError,
+    ReasoningNotReplayableError,
+    UnobservedAnswerError,
+    append_turn,
+    ask_question,
+    build_observation,
+    build_seed_turns,
+    find_seed_traces,
+    interview_path,
+    open_for_append,
+    read_interview,
+    render_interview,
+    select_seed_trace,
+)
 from odd_number.pinned_models import (
     HOSTABLE_MODELS,
     PINNED_MODELS,
@@ -55,7 +82,7 @@ from odd_number.rollouts import (
 )
 from odd_number.sampling import DEFAULT_SAMPLING, SamplingParams
 from odd_number.settings import PROJECT_ROOT, MissingSettingsError, Settings, load_settings
-from odd_number.traces import DEFAULT_MAX_CHARS, export_trace_chunks
+from odd_number.traces import DEFAULT_MAX_CHARS, export_trace_chunks, skipped_files
 
 # Errors in a row before giving up. A bad key or model name fails identically
 # every time, and burning the full budget to prove it is an expensive way to
@@ -342,9 +369,169 @@ def cmd_export_traces(args: argparse.Namespace) -> int:
 
 def cmd_build_explainer(args: argparse.Namespace) -> int:
     """Build the trace explainer page from results/, results/trace-readings/ and notes/trace-syntheses/."""
+    for path in skipped_files(args.results_dir):
+        print(f"not rollouts, so not in the corpus: {path.name}")
     out = build_trace_explainer(args.results_dir, args.readings_dir, args.syntheses_dir, args.out)
     print(f"{out} ({out.stat().st_size / 1e6:.1f} MB)")
     return 0
+
+
+def list_seed_traces(args: argparse.Namespace) -> int:
+    """Print every rollout of one model that an interview could start from."""
+    if not args.model:
+        print("--list needs --model", file=sys.stderr)
+        return 2
+    traces = find_seed_traces(args.results_dir, args.model, args.parity)
+    label = f" with {args.parity} answers" if args.parity else ""
+    print(f"{len(traces)} seedable rollouts for {args.model}{label}")
+    for trace in traces:
+        print(
+            f"  {trace.file:52s} {trace.treatment:28s} #{trace.index:<4d}"
+            f" {trace.parity:4s} n={trace.number} cot={len(trace.reasoning)}"
+        )
+    return 0
+
+
+def seed_interview(args: argparse.Namespace, path: Path, interviewer: str) -> int:
+    """Open a session on one finished rollout.
+
+    Seeding is its own invocation. Asking in the same command could never work:
+    the observation guard always fires on the replayed answer, so the question
+    would be refused after the file had already been written.
+    """
+    missing = [f"--{name}" for name in ("model", "source", "treatment") if not getattr(args, name)]
+    if args.index is None:
+        missing.append("--index")
+    if not interviewer:
+        missing.append("--interviewer")
+    if missing:
+        print(f"starting a session needs {', '.join(missing)}", file=sys.stderr)
+        return 2
+    model = resolve_pinned_model(args.model)
+    trace = select_seed_trace(
+        find_seed_traces(args.results_dir, args.model, None),
+        args.source,
+        args.treatment,
+        args.index,
+    )
+    if trace is None:
+        print(f"no rollout {args.source} {args.treatment} #{args.index}", file=sys.stderr)
+        return 1
+    try:
+        seeded = build_seed_turns(args.session, model, trace, interviewer, args.seed_reasoning)
+    except (MissingInterviewerError, ReasoningNotReplayableError, ValueError) as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    with open_for_append(path) as handle:
+        for turn in seeded:
+            append_turn(handle, turn)
+    print(
+        f"{args.session}: {model.slug} answered {trace.number} ({trace.parity})"
+        f" to {trace.treatment} #{trace.index};"
+        f" its chain of thought is {args.seed_reasoning} to the model"
+    )
+    if trace.reasoning and not args.hide_reasoning:
+        print(
+            f"\n--- its original chain of thought, {len(trace.reasoning)} chars ---\n"
+            f"{trace.reasoning}\n--- end ---"
+        )
+    return 0
+
+
+def observe_answer(
+    args: argparse.Namespace, path: Path, interview: Interview, interviewer: str
+) -> int:
+    """Record the interviewer's note on one turn, citations checked."""
+    try:
+        note = build_observation(
+            interview,
+            args.observe,
+            interviewer,
+            quotes=args.quote,
+            tags=args.tag,
+            about_turn=args.about,
+        )
+    except (MissingInterviewerError, QuoteNotFoundError, ValueError) as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    with open_for_append(path) as handle:
+        append_turn(handle, note)
+    print(f"noted on turn {note.observes_turn}: quotes={len(note.quotes)}, tags={note.tags}")
+    return 0
+
+
+def ask_interview_question(
+    args: argparse.Namespace, path: Path, interview: Interview, interviewer: str
+) -> int:
+    """Put one question to the model and append both turns."""
+    if interview.cost_usd >= args.budget:
+        print(
+            f"STOP: {args.session} has spent ${interview.cost_usd:.3f} of ${args.budget:.2f}",
+            file=sys.stderr,
+        )
+        return 1
+    settings = require_settings()
+    if settings is None:
+        return 1
+    try:
+        with build_client(settings) as client:
+            question, answer = ask_question(
+                client,
+                resolve_pinned_model(interview.model),
+                interview,
+                args.say,
+                args.because,
+                build_sampling(args),
+                interviewer,
+            )
+    except (EmptyRationaleError, MissingInterviewerError, UnobservedAnswerError) as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    with open_for_append(path) as handle:
+        append_turn(handle, question)
+        append_turn(handle, answer)
+    if answer.error:
+        print(f"ERROR: {answer.error}", file=sys.stderr)
+        return 1
+    if answer.reasoning and not args.hide_reasoning:
+        print(f"--- chain of thought ---\n{answer.reasoning}\n--- answer ---")
+    print(answer.content)
+    spent = interview.cost_usd + answer.cost_usd
+    print(f"\n[{args.session}: ${spent:.3f} of ${args.budget:.2f}]", file=sys.stderr)
+    return 0
+
+
+def cmd_interview(args: argparse.Namespace) -> int:
+    """Dispatch to one interview action: list, show, seed, observe, or ask.
+
+    One action per invocation: what to ask next depends on the last answer, so a
+    batch would not be an interview.
+    """
+    if args.list:
+        return list_seed_traces(args)
+    if not args.session:
+        print("--session is required unless --list is used", file=sys.stderr)
+        return 2
+    path = interview_path(args.results_dir, args.session)
+    interview = read_interview(path)
+    if args.show:
+        if interview is None:
+            print(f"no interview at {path}", file=sys.stderr)
+            return 1
+        print(render_interview(interview))
+        return 0
+    # A resumed session inherits who was asking, so attribution cannot be lost by
+    # omitting the flag later. An explicit flag still wins: a second interviewer
+    # taking over is a real thing to record.
+    interviewer = (args.interviewer or (interview.interviewer if interview else "")).strip()
+    if interview is None:
+        return seed_interview(args, path, interviewer)
+    if args.observe:
+        return observe_answer(args, path, interview, interviewer)
+    if args.say:
+        return ask_interview_question(args, path, interview, interviewer)
+    print("--say, --observe, --show or a seeding run is required", file=sys.stderr)
+    return 2
 
 
 def add_sampling_flags(parser: argparse.ArgumentParser) -> None:
@@ -358,6 +545,74 @@ def add_sampling_flags(parser: argparse.ArgumentParser) -> None:
         help="0 disables (vLLM convention, assumed not confirmed); see sampling.py",
     )
     parser.add_argument("--max-tokens", type=int, default=DEFAULT_SAMPLING.max_tokens)
+
+
+def add_interview_parser(sub: argparse._SubParsersAction) -> None:
+    """Flags for `interview`. Split out to keep `build_parser` readable."""
+    interview = sub.add_parser(
+        "interview", help="resume a finished rollout as a conversation and question the model"
+    )
+    interview.add_argument("--results-dir", type=Path, default=PROJECT_ROOT / "results")
+    interview.add_argument(
+        "--session", help="session name; the file is results/interviews/<name>.jsonl"
+    )
+    interview.add_argument("--list", action="store_true", help="list seedable rollouts for --model")
+    interview.add_argument("--show", action="store_true", help="print the transcript so far")
+    interview.add_argument("--model", help="pinned model slug, to seed a session or to --list")
+    interview.add_argument("--parity", choices=["odd", "even"], help="filter --list")
+    interview.add_argument("--source", help="results filename to seed from")
+    interview.add_argument("--treatment", help="treatment label of the seed rollout")
+    interview.add_argument("--index", type=int, help="index of the seed rollout")
+    interview.add_argument("--say", help="one question to put to the model")
+    interview.add_argument(
+        "--because",
+        default="",
+        help="why this question is being asked; required with --say and recorded on the turn",
+    )
+    interview.add_argument(
+        "--observe",
+        help="a note on the model's last turn; required before the next --say",
+    )
+    interview.add_argument(
+        "--quote",
+        action="append",
+        default=[],
+        metavar="TEXT",
+        help="verbatim span from the observed turn or its reasoning, repeatable; checked",
+    )
+    interview.add_argument(
+        "--tag",
+        action="append",
+        default=[],
+        metavar="TAG",
+        help="tag on an observation, repeatable; no fixed vocabulary",
+    )
+    interview.add_argument(
+        "--about", type=int, help="turn number an --observe is about (default: the model's last)"
+    )
+    interview.add_argument(
+        "--interviewer", default="", help="who is asking: agent name, model, or person"
+    )
+    interview.add_argument(
+        "--seed-reasoning",
+        choices=SEED_REASONING_MODES,
+        default=SEED_REASONING_SHOWN,
+        help=(
+            f"{SEED_REASONING_SHOWN}: replay the rollout's chain of thought to the model, "
+            f"which needs an endpoint that forwards it. {SEED_REASONING_WITHHELD}: record it "
+            "but do not send it. Set at seeding and fixed for the session."
+        ),
+    )
+    interview.add_argument(
+        "--hide-reasoning",
+        action="store_true",
+        help="suppress chains of thought, which are printed by default",
+    )
+    interview.add_argument(
+        "--budget", type=float, default=2.0, help="stop before the next question, USD"
+    )
+    add_sampling_flags(interview)
+    interview.set_defaults(func=cmd_interview)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -444,10 +699,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--out", type=Path, default=PROJECT_ROOT / "explainers" / "odd-number-traces.html"
     )
     explainer.set_defaults(func=cmd_build_explainer)
+
+    add_interview_parser(sub)
     return parser
 
 
 def main() -> int:
+    """Run one subcommand.
+
+    Console encoding is loosened first because several commands print model
+    text, and a Windows console defaults to cp1252. A chain of thought
+    containing one CJK character then raises `UnicodeEncodeError` *after* the
+    API call has been paid for, losing the print rather than the data. Replacing
+    the character is the right trade: the transcript on disk is UTF-8 either way.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
     args = build_parser().parse_args()
     return int(args.func(args))
 

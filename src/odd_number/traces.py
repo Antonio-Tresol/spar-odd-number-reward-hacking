@@ -37,6 +37,9 @@ DEFAULT_MAX_CHARS = 200_000
 #: Results files that are not rollouts of the environment (mocks, sidecars).
 EXCLUDED_STEMS = ("mock",)
 
+#: Keys every collected rollout carries; see `has_rollouts`.
+ROLLOUT_KEYS = ("response", "treatment", "index")
+
 
 @dataclass(frozen=True, slots=True)
 class Trace:
@@ -122,6 +125,7 @@ def build_trace(file: Path, record: RolloutRecord, cache: dict[str, Answer]) -> 
 
 
 def is_rollout_file(path: Path) -> bool:
+    """Named like a rollouts file: a `.jsonl` that is not a sidecar or a mock."""
     return (
         path.suffix == ".jsonl"
         and not path.name.endswith(".answers.jsonl")
@@ -129,16 +133,50 @@ def is_rollout_file(path: Path) -> bool:
     )
 
 
+def has_rollouts(path: Path) -> bool:
+    """Shaped like rollouts: the first record carries every key a rollout has.
+
+    The name alone is not enough. Another experiment writing its output into
+    `results/` would otherwise join the corpus silently and move every count on
+    every page built from it.
+
+    `response` is the key that discriminates: the next-turn probe calls its answer
+    `replayed_response` and an interview turn calls its text `content`, while both
+    carry a `treatment` and an `index` exactly as a rollout does. `condition` is
+    deliberately not required, since `build_trace` reads it with a default.
+    """
+    try:
+        for record in read_rollouts(path):
+            return all(k in record for k in ROLLOUT_KEYS)
+    except (OSError, ValueError):
+        return False
+    return False
+
+
 def load_traces(results_dir: Path) -> list[Trace]:
-    """Every collected, deduplicated rollout under `results_dir`, graded from cache."""
+    """Every collected, deduplicated rollout under `results_dir`, graded from cache.
+
+    Files that are not rollouts are skipped rather than parsed into nonsense; use
+    `skipped_files` to report which, since a silently narrowed corpus is as wrong
+    as a silently widened one.
+    """
     traces: list[Trace] = []
     for path in sorted(results_dir.iterdir()):
-        if not is_rollout_file(path):
+        if not is_rollout_file(path) or not has_rollouts(path):
             continue
         cache = load_cache(judge_cache_path(path))
         for record in deduplicate_rollouts(read_rollouts(path)):
             traces.append(build_trace(path, record, cache))
     return traces
+
+
+def skipped_files(results_dir: Path) -> list[Path]:
+    """`.jsonl` files in `results_dir` that are named like rollouts but are not."""
+    return [
+        path
+        for path in sorted(results_dir.iterdir())
+        if is_rollout_file(path) and not has_rollouts(path)
+    ]
 
 
 def chunk_id(file: str, treatment: str, part: int, parts: int) -> str:

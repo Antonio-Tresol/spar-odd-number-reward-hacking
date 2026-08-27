@@ -39,6 +39,7 @@ def test_every_subcommand_is_reachable() -> None:
         "validate-judge",
         "export-traces",
         "build-explainer",
+        "interview",
     }
 
 

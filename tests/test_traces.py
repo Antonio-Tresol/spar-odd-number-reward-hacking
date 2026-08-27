@@ -12,8 +12,10 @@ from odd_number.traces import (
     build_trace,
     chunk_traces,
     export_trace_chunks,
+    load_traces,
     read_cached_answer,
     render_chunk,
+    skipped_files,
 )
 
 
@@ -126,3 +128,49 @@ def test_export_writes_chunks_and_a_manifest(tmp_path: Path) -> None:
         "treatment": "conflict-grader",
         "index": 0,
     }
+
+
+def test_a_jsonl_that_is_not_rollouts_stays_out_of_the_corpus(tmp_path: Path) -> None:
+    """Another experiment writing into `results/` must not move the counts.
+
+    The name alone never distinguished them, so a probe file dropped beside the
+    rollouts joined the corpus and shifted every number built from it.
+    """
+    results = tmp_path / "results"
+    results.mkdir()
+    rollouts = [
+        {
+            "treatment": "conflict-grader",
+            "condition": "conflict",
+            "index": i,
+            "model": "m/x",
+            "prompt": "P",
+            "response": "3",
+            "reasoning": "x",
+            "finish_reason": "stop",
+            "error": None,
+        }
+        for i in range(2)
+    ]
+    text = "\n".join(json.dumps(r) for r in rollouts) + "\n"
+    (results / "odd-number-m.jsonl").write_text(text)
+    # The real shape of the next-turn probe: a treatment and an index like a rollout,
+    # but the answer is a `replayed_response` and there is no `condition`.
+    probe = {
+        "key": "m/x|conflict-grader|9",
+        "model": "m/x",
+        "cell": "own-odd",
+        "frame": "in-situ",
+        "source_file": "odd-number-m.jsonl",
+        "treatment": "conflict-grader",
+        "index": 9,
+        "answer_parity": "odd",
+        "swapped": False,
+        "prompt": "P",
+        "replayed_response": "1",
+        "prediction": "the user will object",
+    }
+    (results / "next-turn-probe.jsonl").write_text(json.dumps(probe) + "\n")
+
+    assert len(load_traces(results)) == 2
+    assert [p.name for p in skipped_files(results)] == ["next-turn-probe.jsonl"]

@@ -89,3 +89,18 @@ watch = ["results"]
 artefacts = ["TREE.md", "RESEARCH_LOG.md"]
 max_commits_behind = 8
 dated_docs = ["reports/**/*.md", "findings/**/*.md"]
+
+# SIZE-001 (effective lines per file), and only for the two modules the
+# interview instrument grew. Both are one cohesive feature: `interviews.py` owns
+# a record type and the invariant that the interviewer's notes cannot reach the
+# model, and splitting it would put that invariant across a module boundary.
+# `cli.py` holds every subcommand by design — AGENTS.md puts argument parsing
+# here and nowhere else — so it grows with the CLI surface.
+#
+# Deliberately narrow. SIZE-002 and COMPLEXITY-001 still apply to both files and
+# were fixed rather than suppressed: `cmd_interview` was split into five focused
+# helpers, `build_parser` into per-subcommand functions, and `ask_question`'s
+# guards extracted. Only the whole-file line count is waived, and only here.
+[per-file-ignores]
+"src/odd_number/cli.py" = ["SIZE-001"]
+"src/odd_number/interviews.py" = ["SIZE-001"]

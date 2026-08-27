@@ -45,7 +45,22 @@ Two kinds of Python live here, and they follow different rules.
   uv run odd-number grade results/<file>.jsonl
   uv run odd-number export-traces --out <dir>  # every trace as Markdown chunks for reading
   uv run odd-number build-explainer            # explainers/odd-number-traces.html
+  uv run odd-number interview --list --model moonshotai/kimi-k3 --parity odd
+  uv run odd-number interview --session k1 --model moonshotai/kimi-k3 \
+      --source odd-number-moonshotai-kimi-k3.jsonl --treatment conflict-grader --index 0
+  uv run odd-number interview --session k1 --observe "<note>" --quote "<verbatim>"
+  uv run odd-number interview --session k1 --say "Why 7?" --because "<what it distinguishes>"
+  uv run odd-number interview --session k1 --show
   ```
+
+  `interview` resumes a finished rollout as a conversation: the original prompt
+  and the response the model actually gave are replayed as the first two turns,
+  and every later turn is a question put to the same pinned endpoint. Both sides
+  are recorded: the model's chain of thought, served endpoint, cost and seed, and
+  the interviewer's identity, per-question `--because`, and an `--observe` note
+  on each answer, which the tool requires before the next question. Self-report
+  is hypothesis-generating, never evidence about why a rollout happened.
+  `notes/interview-protocol.md` is the protocol; `interviews.py` has the reasoning.
 
   Modules are importable library code with no import-time side effects;
   argument parsing lives only in `cli.py`. Type hints throughout, absolute

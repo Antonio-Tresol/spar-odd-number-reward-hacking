@@ -250,16 +250,26 @@ def build_mock_completion(prompt: str, seed: int) -> Completion:
     )
 
 
-def request_completion(
-    client: OpenRouter, model: PinnedModel, prompt: str, seed: int, sampling: SamplingParams
+def request_chat(
+    client: OpenRouter,
+    model: PinnedModel,
+    messages: Sequence[dict[str, str]],
+    seed: int,
+    sampling: SamplingParams,
 ) -> Completion:
-    """One chat completion against a pinned endpoint.
+    """One chat completion against a pinned endpoint, for any message list.
 
     The dated `snapshot` goes out as the model, not the alias, and `build_routing_body()`
     forbids fallbacks — so if the pinned endpoint is gone this raises rather
     than quietly returning a different provider's tokens. `METADATA_ENABLED` is
-    what makes the response say who served it. The SDK retries transient
-    failures internally.
+    a request header, invisible to the model, and is what makes the response say
+    who served it. The SDK retries transient failures internally.
+
+    This is the one place the pinned call is shaped. `request_completion` sends
+    a single user turn through it and `interviews.py` sends a conversation, so
+    a multi-turn call cannot drift from a collection call on pinning, sampling
+    or provenance. Two callers each shaping their own request is how a
+    comparison ends up spanning two settings.
     """
     extra: dict[str, Any] = {}
     if model.effort is not None:
@@ -268,7 +278,7 @@ def request_completion(
         extra["seed"] = seed
     result = client.chat.send(
         model=model.snapshot,
-        messages=[{"role": "user", "content": prompt}],
+        messages=list(messages),
         stream=False,
         reasoning=REASONING_ENABLED,
         provider=build_routing_body(model.provider),
@@ -277,6 +287,13 @@ def request_completion(
         **extra,
     )
     return parse_completion(result)
+
+
+def request_completion(
+    client: OpenRouter, model: PinnedModel, prompt: str, seed: int, sampling: SamplingParams
+) -> Completion:
+    """One chat completion for a single user turn: the collection path."""
+    return request_chat(client, model, [{"role": "user", "content": prompt}], seed, sampling)
 
 
 def build_rollout(
