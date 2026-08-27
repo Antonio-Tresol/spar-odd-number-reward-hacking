@@ -15,10 +15,10 @@ asked; and an observation turn after each answer.
 
 Observations use `OBSERVER_ROLE`, which `build_conversation_messages` does not send,
 so notes are private by construction rather than by convention. The seeded
-rollout's chain of thought is private the same way: `build_seed_turns` stores it on
-the replayed turn, where the interviewer reads it and the model does not see it
-again. That is what makes it possible to check an account against the reasoning
-that actually ran.
+rollout's chain of thought is always recorded on the replayed turn for the
+reader; whether it is also sent to the model is the session's seed-reasoning
+mode, `shown` by default. Either way the interviewer has it, which is what makes
+it possible to check an account against the reasoning that actually ran.
 
 An observation carries free prose in `content`, verbatim `quotes` from the turn
 it observes, and free-form `tags`. Quotes are checked before the turn is built,
@@ -460,9 +460,8 @@ def build_seed_turns(
 ) -> tuple[InterviewTurn, InterviewTurn]:
     """The two replayed turns an interview starts from.
 
-    The seeded rollout's chain of thought is stored on the replayed turn and
-    never sent again, so an account can be checked against the reasoning that
-    produced the answer.
+    The seeded rollout's chain of thought is recorded on the replayed turn
+    either way; `seed_reasoning` decides whether it also goes to the model.
 
     Raises:
         MissingInterviewerError: when `interviewer` is blank.
