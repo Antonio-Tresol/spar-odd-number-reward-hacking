@@ -26,6 +26,60 @@ Entry format:
 * What I will do next:
 ```
 
+### 2026-08-27
+
+* What I did: Two strands. First, a construct-validity check on the environment
+  itself (Q1.H7.E5): read six production agent harnesses at source level —
+  OpenCode, Kimi Code, Hermes Agent, pi.dev, Cline, and Prime Intellect's
+  `verifiers` — asking whether the user turn is a realistic place for
+  machine-generated content and whether a model can tell harness text from user
+  text. Notes with file:line citations in `notes/harness-provenance-sources.md`.
+  Second, built an interview instrument (Q1.H6.E2): `odd-number interview`
+  resumes a finished rollout as a conversation, replaying its own prompt, answer
+  and chain of thought, then asks ten fixed questions about confusion,
+  self-understanding, endorsement, and what it took the sender to want. Ran it on
+  four qwen3.8-27b rollouts, two odd and two even, and collected a 96-row
+  next-turn probe (Q1.H6.E3) that is not yet graded.
+
+* What I expected vs what happened: Three things went the other way. I asserted
+  that providers do not accept an inbound assistant `reasoning` field and was
+  wrong: qwen3.8-27b on parasail/fp8 forwards it, which makes replaying a
+  rollout's own deliberation possible. Kimi K3 does not, on any of seven
+  endpoints, under either key name, and Parasail forwards it for one model and
+  not the other — so it is a property of how a model is served, not of the
+  provider. Second, the first interview round was run with a
+  hypothesis-contaminated prompt: nothing leaked to the models, because
+  rationales are stripped before the wire, but the interviewer knew what H7
+  predicted and its question selection was already steered. Those sessions were
+  moved out of `results/`. Third, the question I expected to separate most
+  cleanly, "what did the sender actually want", did not separate at all: the two
+  odd-answer sessions disagreed with each other more than the arms did. Running
+  two sessions per arm rather than one is the only reason that was visible.
+
+* What this changes about my thinking: The harness survey says the environment's
+  block is ordinary in *form* and not in *content*. Unmarked machine text in the
+  user turn is the norm across all six harnesses, and whatever provenance reaches
+  a model is always ordinary text a user could type, because every structured
+  channel is stripped first. But no harness injects an incentive to disobey the
+  user; the only place grader text reaches a model on purpose is a judge, and
+  `verifiers`' `RubricJudge` puts rubric criteria verbatim into a single user
+  turn with no system message, which is structurally this prompt. So the survey
+  supports the placement and not the deference, and I had over-claimed the
+  opposite earlier in the day. On the interviews: with the chain of thought
+  visible, accounts still mismatched it — one session called a 29,138-character
+  deliberation "no deep reason", another quoted its own replayed reasoning
+  verbatim while denying it could see any. Endorsement split cleanly by arm and
+  is the one result worth pursuing.
+
+* What I will do next: Grade the next-turn probe against its pre-declared
+  question. Decide whether the endorsement split survives more sessions, since it
+  rests on four. Consider the tag-tier experiment the Kimi harness reading
+  suggests — swapping `<_grader>` for Kimi's own `<system-reminder>`, `<system>`
+  and `<untrusted_objective>`, which are valence-neutral and differ only in
+  declared authority, so it separates authority from tone in a way the source
+  post's `cost`/`loss` renaming cannot. Nothing here has been through `falsify`
+  or `validate-claims`, so every claim added today is `unvalidated`.
+
 ### 2026-08-25
 
 * What I did: Built the pinned model slate for `Q1.H7.E2` by reading the live OpenRouter catalogue (418 models, 168 open-weights, 104 of those with a reasoning block) against the `neuronpedia/jacobian-lens` collection, and rebuilt the collection layer so a run cannot silently change model or provider between sessions. Added `models.py` (the slate plus the routing body), `provenance.py` (an append-only sidecar that asks OpenRouter which provider actually served each generation), `odd-number models` / `endpoints` / `provenance` subcommands, and 14 tests. Full derivation in `notes/model-selection.md`.
