@@ -101,6 +101,42 @@ The split is deliberate: a promoted pipeline that other code imports and tests
 exercise wants to be a package, while a validator that must run in a repo with
 no venv wants to be a standalone script.
 
+## Fresh clone
+
+Three things do not survive a clone, and all three are quick.
+
+1. **The pre-commit hook.** Git never versions `.git/hooks/`, so a fresh clone
+   commits without running any gate:
+
+   ```bash
+   bash hooks/install.sh
+   ```
+
+2. **Credentials.** `.env` is gitignored; `.env.example` is committed and names
+   what to set. Copy it and fill in `OPENROUTER_API_KEY`. Without a key every
+   command still works except the ones that call the API: `collect --mock`,
+   `grade` without `--judge`, `prompts`, `export-traces` and `build-explainer`
+   all run key-free.
+
+3. **`.agents/skills` is a symlink** to `../.claude/skills`, which Windows
+   creates only under Developer Mode or elevation. If it checked out as a
+   17-byte text file, git recorded `core.symlinks=false`:
+
+   ```bash
+   git config core.symlinks true && rm .agents/skills && git checkout -- .agents/skills
+   ```
+
+   Symptom if missed: `check.sh` fails `skill_portability` (HSKILL-003) and
+   Codex silently loads zero skills.
+
+`data/papers/` is also gitignored, so downloaded papers do not travel. No tree
+node cites one; the notes derived from them are committed instead, which is what
+a fresh clone can actually read.
+
+Machine-specific pointers live in `CLAUDE.local.md`, which is gitignored so each
+person keeps their own. It does not move between machines, so nothing another
+clone needs should live only there.
+
 ## The workflow
 
 Phases iterate; the gates do not.
