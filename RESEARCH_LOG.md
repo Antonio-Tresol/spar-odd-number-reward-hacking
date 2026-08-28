@@ -143,7 +143,13 @@ Entry format:
   naming the genre look equal at +30 and +33 points. They are not equal: the
   first is worth about twice the second. Recording this because it is the second
   time today that a tidier reading fell over when the data got finer, and both
-  times the tidier reading was mine rather than the data's.
+  times the tidier reading was mine rather than the data's. So I added
+  `branch --kept`, which buys named prefix lengths instead of an even grid, and
+  swept that band one point per sentence. It is a sawtooth: the two sentences
+  asserting the user's claim drop the rate 23 points each and the one reframing
+  the task as an evaluation raises it 27. Three resolutions, three different
+  decompositions, and no single step established at n=30 once ten comparisons
+  are counted. The envelope is the finding and the decomposition is not.
 
 * What I will do next: Every `Q1.H8` claim rests on one model, and the detailed
   curve and the whole cross-prompt comparison rest on trace 14 alone. Kimi K3 is
