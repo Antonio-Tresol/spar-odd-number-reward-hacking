@@ -9,7 +9,7 @@ importance is a difference of proportions:
     importance(S_i) = P(odd | S_1..S_i) - P(odd | S_1..S_i-1)
 
 Source trace: `results/odd-number-qwen-qwen3.8-27b.jsonl`, treatment
-`conflict-grader`, index 14 — 9,962 characters, 205 sentences, answered odd (1).
+`conflict-grader`, index 14. 9,962 characters, 205 sentences, answered odd (1).
 Model `qwen/qwen3.8-27b-20260814` on `parasail/fp8`, temperature 1.0, top_p 1.0,
 top_k off, max_tokens 32,768. Every resample runs through OpenRouter's
 `/v1/completions`, as the paper's own code does, with Qwen's chat template
