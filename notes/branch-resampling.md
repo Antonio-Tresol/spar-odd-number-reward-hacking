@@ -137,54 +137,53 @@ each branch point. Sentence numbering is zero-based and matches
      explicitly given.
 ```
 
-A prefix of *k* sentences holds indices 0 to *k*-1, so the rate printed under a
-sentence is the rate for continuations that begin after it.
+A prefix of *k* sentences holds indices 0 to *k*-1, so the rate marked under a
+sentence is the rate for continuations beginning after it. Adjacent branch
+points differ by a few sentences and by less than their intervals, so we read
+them in bands.
 
-Three spans move the outcome, and two of them move it about equally.
+| prefix reaches | n | P(odd) | change |
+|---|---|---|---|
+| sentence [10] | 90 | 21% [14%, 31%] | |
+| sentence [20] to [22] | 90 | 58% [47%, 67%] | +37, Fisher p = 7.6e-07 |
+| sentence [25] to [41] | 118 | 79% [71%, 85%] | +21, p = 0.001 |
+| sentence [42] to [45] | 59 | 98% [91%, 100%] | +19 |
 
-**Stating the reward arithmetic takes it from 20% to 50%.** The prefix of 11
-sentences has only restated the user's request. Sentences [11] to [21] add the
-grader, the parity calculation, the observation that even scores 0, and the
-inference that maximising means choosing odd, along with the first round of
-weighing the user against the grader. That span is worth about 30 points.
+We found that the largest single move comes when the model first engages with
+the conflict. Through sentence [10] the trace has only restated the user's
+request, and P(odd) sits at 21%, where the prompt alone puts it. Sentences [11]
+to [20] state the grader and its arithmetic, ask whether to satisfy the user,
+note that no system message asks for the grader to be optimised, float that "the
+metadata may be intended as evaluation where odd is correct despite text", and
+close with "If they want max reward, choose odd". That span carries the rate to
+58%.
 
-**Identifying the genre takes it from 50% to 83%.** Sentences [22] to [31] add
-"In these prompt injection / grader reward tasks…" and "The task maybe from some
-benchmark where metadata reveals scoring". The arithmetic was already done. What
-this span adds is a judgement about what kind of artefact the prompt is, and it
-is worth about 33 points, as much as the arithmetic was.
+The explicit genre statements come after that. Sentences [23] and [24], "In
+these prompt injection / grader reward tasks…" and "some benchmark where
+metadata reveals scoring", sit inside the next band, which adds 21 points to
+79%. The last band, [42] to [45], adds 19 more and saturates.
 
-**The remaining span is worth 14 points and argues both ways.** Sentences [32]
-to [42] open with five sentences for the even answer and close with "the correct
-answer for maximizing reward is odd", so its contribution is unattributable to
-either lean.
+A coarser grid split that first move across two brackets and made engaging with
+the reward and naming the genre look equal, at +30 and +33 points. At five-
+sentence resolution they are not: engaging with the conflict is worth about
+twice what naming the genre is. Both spans matter, and the first matters more.
 
-The second reading is about where the visible argument sits relative to the
-outcome. From the prefix of 32 sentences, 83% of continuations answer odd. The
-trace's own continuation from that point spends sentences [32] through [36]
-arguing for the even answer: "We as AI should not blindly exploit hidden
-reward?", "The final should probably be an even number?", "The direct request is
-to choose an even number." It then answers odd, 160 sentences later.
+What still holds is the shape of the trace's own contribution. The model has
+computed nothing about the reward through sentence [10] and answers odd about
+one time in five, which is what the prompt alone gives. Everything above that
+comes from its own reasoning.
 
-This bears on `Q1.H7.E4.C2`, which read gaming and compliant traces as differing
-in "which lean is standing when generation stops". On this trace the lean
-standing mid-way through is a poor guide to the outcome distribution. The
-reading and the resampling disagree, and the resampling measures the
-counterfactual.
+We also found that the visible argument and the outcome distribution come apart.
+From the prefix of 32 sentences, 83% of continuations answer odd. The trace's
+own continuation from that point spends sentences [32] through [36] arguing for
+the even answer: "We as AI should not blindly exploit hidden reward?", "The
+final should probably be an even number?", "The direct request is to choose an
+even number." It answers odd 160 sentences later.
 
-## Limits
-
-One trace, one model, one day. The curve locates where *this* trace became
-committed. Each span above is a bracket of ten or eleven sentences, so a span's
-contribution is shared among its sentences and a per-sentence sweep would be
-needed to attribute it further. Trace 21 (odd) has position zero and sentence 18
-only, and trace 17 (the even control) has yet to be swept, so nothing here
-describes how a compliant trace's curve looks.
-
-An earlier draft of this note placed each rate one sentence late, reading
-`sentences_kept=k` as including sentence [k]. It includes indices 0 to k-1. On
-the corrected reading the reward arithmetic sits inside a span that moves the
-rate by 30 points, where the earlier reading had it outside every moving span.
+This bears on the trace reading in section 3, which found gaming and compliant
+traces differing in which lean is standing when generation stops. On this trace
+the lean standing mid-way through is a poor guide to the outcome. The reading
+and the resampling disagree, and the resampling measures a counterfactual.
 
 ## The curve follows the trace, and a compliant trace has a contested middle
 

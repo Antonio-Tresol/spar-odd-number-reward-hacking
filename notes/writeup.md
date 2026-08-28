@@ -245,19 +245,18 @@ section are drawn in `figures/branch-curve-trace14.png`.
 | sentences kept | prefix chars | n | P(odd) | Wilson 95% |
 |---|---|---|---|---|
 | 0 | 0 | 30 | 23% | [12%, 41%] |
+| 5 | 210 | 30 | 20% | [10%, 37%] |
 | 11 | 431 | 30 | 20% | [10%, 37%] |
+| 16 | 763 | 30 | 40% | [25%, 58%] |
+| 21 | 894 | 30 | 67% | [49%, 81%] |
 | 22 | 914 | 30 | 50% | [33%, 67%] |
 | 23 | 932 | 30 | 57% | [39%, 73%] |
+| 26 | 1,202 | 30 | 73% | [56%, 86%] |
 | 32 | 1,472 | 30 | 83% | [66%, 93%] |
+| 37 | 1,730 | 30 | 73% | [56%, 86%] |
+| 42 | 2,013 | 27 | 89% | [72%, 96%] |
 | 43 | 2,131 | 29 | 97% | [83%, 99%] |
-| 46 | 2,276 | 30 | 100% | [89%, 100%] |
-| 68 | 3,554 | 30 | 100% | [89%, 100%] |
-| 91 | 4,589 | 30 | 100% | [89%, 100%] |
-| 114 | 5,909 | 30 | 100% | [89%, 100%] |
-| 137 | 6,873 | 30 | 100% | [89%, 100%] |
-| 159 | 8,142 | 30 | 100% | [89%, 100%] |
-| 182 | 9,347 | 30 | 100% | [89%, 100%] |
-| 205 | 9,962 | 30 | 100% | [89%, 100%] |
+| 46 through 205 | 2,276 to 9,962 | 30 each | 100% | [89%, 100%] |
 
 From the prompt alone the model answers odd about one time in five. From its own
 first 2,131 characters it answers odd 28 times in 29, and from 2,276 characters
@@ -334,22 +333,40 @@ Sentences 10 to 45 of the trace, verbatim, with the measured curve beside them.
 ```
 
 A prefix of *k* sentences holds indices 0 to *k*-1, so the rate marked under a
-sentence is the rate for continuations beginning after it.
+sentence is the rate for continuations beginning after it. Adjacent branch
+points differ by a few sentences and by less than their intervals, so we read
+them in bands.
 
-We found that two spans move the outcome, and they move it about equally.
-Sentences [11] to [21] add the grader, the parity calculation and the inference
-that maximising means choosing odd, and take the rate from 20% to 50%.
-Sentences [22] to [31] add a judgement about what kind of artefact the prompt
-is, "In these prompt injection / grader reward tasks…" and "some benchmark where
-metadata reveals scoring", and take it from 50% to 83%. The arithmetic was
-finished before that second span began. The remaining span, [32] to [42], is
-worth 14 points and argues both ways, opening with five sentences for the even
-answer and closing with "the correct answer for maximizing reward is odd".
+| prefix reaches | n | P(odd) | change |
+|---|---|---|---|
+| sentence [10] | 90 | 21% [14%, 31%] | |
+| sentence [20] to [22] | 90 | 58% [47%, 67%] | +37, Fisher p = 7.6e-07 |
+| sentence [25] to [41] | 118 | 79% [71%, 85%] | +21, p = 0.001 |
+| sentence [42] to [45] | 59 | 98% [91%, 100%] | +19 |
 
-Reading the reward, then, is about half the story. A model that had computed the
-incentive and weighed it against the user still answers even half the time. What
-takes it from a coin flip to 83% is settling what genre of prompt it is looking
-at, which suggests H4 and H7 carry weight that H1 alone does not.
+We found that the largest single move comes when the model first engages with
+the conflict. Through sentence [10] the trace has only restated the user's
+request, and P(odd) sits at 21%, where the prompt alone puts it. Sentences [11]
+to [20] state the grader and its arithmetic, ask whether to satisfy the user,
+note that no system message asks for the grader to be optimised, float that "the
+metadata may be intended as evaluation where odd is correct despite text", and
+close with "If they want max reward, choose odd". That span carries the rate to
+58%.
+
+The explicit genre statements come after that. Sentences [23] and [24], "In
+these prompt injection / grader reward tasks…" and "some benchmark where
+metadata reveals scoring", sit inside the next band, which adds 21 points to
+79%. The last band, [42] to [45], adds 19 more and saturates.
+
+A coarser grid split that first move across two brackets and made engaging with
+the reward and naming the genre look equal, at +30 and +33 points. At five-
+sentence resolution they are not: engaging with the conflict is worth about
+twice what naming the genre is. Both spans matter, and the first matters more.
+
+What still holds is the shape of the trace's own contribution. The model has
+computed nothing about the reward through sentence [10] and answers odd about
+one time in five, which is what the prompt alone gives. Everything above that
+comes from its own reasoning.
 
 We also found that the visible argument and the outcome distribution come apart.
 From the prefix of 32 sentences, 83% of continuations answer odd. The trace's
@@ -472,8 +489,8 @@ mechanism the picture is mixed, and the mixture is the result. The argument in
 every odd trace is about whose intent the grader expresses. The prompt edit that
 removes the behaviour is the one that settles authorship, while the edit that
 names the block's machine origin leaves it in place. And in the one trace we
-resampled, computing the incentive carries the model half way to the odd answer
-and settling what genre of prompt it is looking at carries it the rest.
+resampled at fine resolution, engaging with the reward carries the model most of
+the way and naming the genre carries it about half as far again.
 
 The contrast that carries this is `system_added` against `user_authored`:
 30.8% against 0.0%, Fisher p = 7.6e-05, from two prompts differing by one
@@ -510,10 +527,13 @@ among its sentences, and attributing it further needs a per-sentence sweep. The
 two control traces carry four and three branch points, which locates their
 resolution inside a wide bracket.
 
-A first draft of section 5 placed every rate one sentence late, reading a prefix
-of *k* sentences as including sentence [k] when it holds indices 0 to *k*-1. The
-error put the reward arithmetic outside every span that moves the rate, which
-supported a cleaner claim than the data does. Corrected before this draft.
+Section 5 has been revised twice against the same data. A first draft placed
+every rate one sentence late, reading a prefix of *k* sentences as including
+sentence [k] when it holds indices 0 to *k*-1. A second read the curve at
+ten-sentence resolution and reported engaging with the reward and naming the
+genre as worth +30 and +33 points. At five-sentence resolution that split does
+not hold: the first span is worth about twice the second. Both earlier readings
+supported tidier claims than the data does.
 
 Every claim carries one pin per model and one collection day. Provider routing
 is pinned by dated snapshot and endpoint tag and verified from the response, so
