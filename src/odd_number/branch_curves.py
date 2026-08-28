@@ -40,6 +40,11 @@ SOLID_TRIALS: int = 10
 SECOND_INK: str = "#1565c0"
 THIRD_INK: str = "#2e7d32"
 
+#: The two parities a resample can be counted under. Anything else is a call
+#: that returned without a number, and belongs in neither the numerator nor the
+#: denominator of a rate.
+ANSWERED: frozenset[str] = frozenset({"odd", "even"})
+
 #: Room above and below the 0-1 axis, so the 0% and 100% markers and their
 #: intervals sit inside the frame instead of on it.
 Y_PAD: float = 0.06
@@ -82,16 +87,19 @@ class BranchCurve:
 def read_branch_curve(path: Path, label: str) -> BranchCurve:
     """Load one sweep's rows and count odd answers per branch point.
 
-    Rows that recorded an error carry no answer and are dropped, which is the
-    same rule `load_completed_keys` applies when deciding what a resumed sweep
-    still owes.
+    A row counts only when it carries an answer. Two things disqualify one: an
+    error field, which is the rule `load_completed_keys` applies when deciding
+    what a resumed sweep still owes, and a completion that came back without a
+    readable number, which the provider has returned with `finish_reason`
+    `error` while the request itself succeeded. Keeping the second kind in the
+    denominator would count a failed call as a compliant answer.
     """
     trials: dict[tuple[int, int], list[str]] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
         row = json.loads(line)
-        if row.get("error") is not None:
+        if row.get("error") is not None or row["parity"] not in ANSWERED:
             continue
         key = (row["sentences_kept"], row["prefix_chars"])
         trials.setdefault(key, []).append(row["parity"])

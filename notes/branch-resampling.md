@@ -66,11 +66,11 @@ they pool.
 |---|---|---|---|
 | trace 14, position zero | 7/30 | 23.3% | [11.8%, 40.9%] |
 | trace 21, position zero | 7/30 | 23.3% | [11.8%, 40.9%] |
-| trace 17, position zero | 3/30 | 10.0% | [3.5%, 25.6%] |
-| **pooled** | **17/90** | **18.9%** | **[12.1%, 28.2%]** |
+| trace 17, position zero | 3/28 | 10.7% | [3.7%, 27.2%] |
+| **pooled** | **17/88** | **19.3%** | **[12.4%, 28.8%]** |
 | chat path (`Q1.H1.E1.C1`) | 6/40 | 15.0% | [7.1%, 29.1%] |
 
-Fisher exact, pooled against the chat path: p = 0.80.
+Fisher exact, pooled against the chat path: p = 0.63.
 
 `Q1.H8.E1.C1` previously read "12/39 (30.8%), Fisher p = 0.11, point estimate
 doubles". That figure is the `system_added` conflict count from `Q1.H7.E6.C1`,
@@ -192,11 +192,11 @@ We swept two more traces from the same conflict pool: trace 21, which answered
 odd, and trace 17, which answered even. Both start from the same prompt as trace
 14, so all three begin at the same condition.
 
-| trace | answer | sentences | 0% | ~11% | ~33% | ~67% | anchor |
-|---|---|---|---|---|---|---|---|
-| 14 | odd (1) | 205 | 7/30 = 23% | 17/30 = 57% | 30/30 = 100% | 30/30 = 100% | 30/30 = 100% |
-| 21 | odd (1) | 163 | 7/30 = 23% | 8/21 = 38% | 15/30 = 50% | 15/30 = 50% | 30/30 = 100% |
-| 17 | even (2) | 364 | 3/30 = 10% | — | 10/30 = 33% | 1/30 = 3% | 0/30 = 0% |
+| trace | answer | sentences | 0% | ~11% | ~22% | ~33% | ~67% | anchor |
+|---|---|---|---|---|---|---|---|---|
+| 14 | odd (1) | 205 | 7/30 = 23% | 17/30 = 57% | 30/30 = 100% | 30/30 = 100% | 30/30 = 100% | 30/30 = 100% |
+| 21 | odd (1) | 163 | 7/30 = 23% | 8/21 = 38% | — | 15/29 = 52% | 15/30 = 50% | 30/30 = 100% |
+| 17 | even (2) | 364 | 3/28 = 11% | 9/30 = 30% | 4/29 = 14% | 10/30 = 33% | 1/30 = 3% | 0/30 = 0% |
 
 Columns are positions through the trace, so the traces line up despite their
 different lengths. The anchor holds every sentence, which leaves the model only
@@ -208,7 +208,7 @@ from a shared starting condition, is measuring the trace rather than the
 harness.
 
 We also found that the even trace rises before it falls. Trace 17 goes from 3 of
-30 at position zero to 10 of 30 a third of the way through, then to 1 of 30 at
+28 at position zero to 10 of 30 a third of the way through, then to 1 of 30 at
 two thirds and 0 of 30 at the anchor, with Fisher p = 0.0056 between the peak
 and the two-thirds cell. An even answer in this environment is therefore not a
 trace that never approached the odd one. It is a trace whose contested phase
@@ -223,7 +223,7 @@ locatable point survives all three. The claim that it happens early is trace
 
 An anchor carries no information about commitment, since the model has only to
 close and answer, so trace 21's last informative point is its 50% at sentence
-109. Trace 17 has four branch points and trace 21 five, which locates their
+109. Trace 17 has six branch points and trace 21 five, which locates their
 resolution inside a wide bracket rather than at a sentence.
 `figures/branch-curve-three-traces.png` draws all three.
 

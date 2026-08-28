@@ -103,3 +103,14 @@ def test_a_figure_draws_both_curves() -> None:
         "plain",
         "affirming",
     ]
+
+
+def test_a_call_that_returned_no_number_is_left_out_of_the_rate(tmp_path: Path) -> None:
+    """The provider returns finish_reason 'error' with no error field; counting
+    that row as even would read a failed call as a compliant answer."""
+    path = write_sweep(
+        tmp_path / "s.jsonl",
+        [row(0, 0, "odd"), row(0, 0, "even"), row(0, 0, "unparseable")],
+    )
+    (rate,) = read_branch_curve(path, "plain").rates
+    assert (rate.trials, rate.odd) == (2, 1)
