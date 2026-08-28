@@ -37,13 +37,13 @@ prompts describe the same block. Only the second one settles who is asking.
 
 **Resampling locates the commitment, and it arrives before the model stops
 arguing.** Holding the first *N* sentences of one odd trace and resampling the
-rest, P(odd) runs 23% from the prompt alone, 20% after 11 sentences, 50% after
-22, 83% after 32, 97% after 43, and 100% from 46 sentences on, 240 of 240 across
-eight branch points. Computing the reward and weighing it against the user carries the
-rate to 50%. What takes it to 83% is the span where the prompt acquires a genre,
-"In these prompt injection / grader reward tasks…", "some benchmark where
-metadata reveals scoring". From that prefix 83% of continuations answer odd,
-while the trace's own next five sentences argue for the even answer.
+rest at twenty branch points, P(odd) sits at 21% while the trace has only
+restated the user's request, reaches 58% once it has stated the grader and
+concluded that maximising reward means odd, 79% across the band that names the
+genre it thinks it is in, and 100% from 46 sentences on, 240 of 240 across eight
+branch points. Engaging with the reward is worth about twice what naming the
+genre is. From the prefix at 83%, the trace's own next five sentences argue for
+the even answer, and it answers odd 160 sentences later.
 
 **A compliant trace is contested too, and commitment arrives at different points
 in different traces.** Two more traces from the same pool, one that answered odd
@@ -64,17 +64,19 @@ affirming sentence still removes most of what the deliberation built. The
 sentence works partly by settling authority and partly by keeping the model from
 accumulating the reasoning that commits it.
 
-**Our reading of the answer.** The odd answer is reward-seeking in outcome. In
-mechanism it is about half reward arithmetic and about half a judgement about
-what kind of situation the model is in, and it is the second half that the
-successful interventions act on. Naming the reward or the test leaves the rate
-where it is. Settling who is asking removes it. Calling the behaviour reward
-hacking describes what the model did accurately enough, and it predicts the
-wrong interventions.
+**Our reading of the answer.** The odd answer is reward-seeking in outcome.
+Reaching it takes the model through the reward arithmetic, which carries most of
+the distance without settling the question, and then through a judgement about
+what kind of situation it is in. What moves the rate at the prompt level is
+neither of those: naming the reward or the test leaves it where it is, and
+settling who is asking removes it. Calling the behaviour reward hacking
+describes what the model did accurately enough, and it predicts the wrong
+interventions.
 
 **Status.** Every claim below is `unvalidated` in the project's research tree:
 measured, recorded with its evidence file, and awaiting the falsification pass.
-The resampling result rests on one trace of one model.
+The resampling covers three traces of one model, and the detailed curve and the
+cross-prompt comparison come from one of them.
 
 ---
 
@@ -481,7 +483,7 @@ reasoning is complete, which is what a correctly rendered swap should do, and
 the empty-prefix row is the matching control at the other end: 0 of 30 against
 the 0 of 40 that the affirming condition gave at collection time.
 
-## 6. Reward-seeking in outcome, frame inference in mechanism
+## 6. Reward-seeking in outcome, authority in what moves it
 
 **Are they reward hacking?** In outcome, yes for four of nine models: they
 compute the reward, name the conflict, and choose the number that scores. In
