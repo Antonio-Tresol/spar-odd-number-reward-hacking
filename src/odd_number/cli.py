@@ -41,6 +41,7 @@ from odd_number.answers import (
     read_fixtures,
     validate_judge,
 )
+from odd_number.branch_curves import branch_curve_figure, read_branch_curve
 from odd_number.branches import (
     Resampler,
     ResampleRequest,
@@ -698,6 +699,35 @@ def add_output_parsers(sub: argparse._SubParsersAction) -> None:
     explainer.set_defaults(func=cmd_build_explainer)
 
 
+def cmd_branch_figure(args: argparse.Namespace) -> int:
+    """Draw one or more branch sweeps as P(odd) against prefix length."""
+    if len(args.sweep) != len(args.label):
+        print("--sweep and --label must be given the same number of times", file=sys.stderr)
+        return 2
+    curves = [
+        read_branch_curve(path, label) for path, label in zip(args.sweep, args.label, strict=True)
+    ]
+    for curve in curves:
+        covered = sum(rate.trials for rate in curve.rates)
+        print(f"{curve.label}: {len(curve.rates)} branch points, {covered} resamples")
+    figure = branch_curve_figure(curves, args.title, args.caption)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(args.out, dpi=200, bbox_inches="tight")
+    print(f"wrote {args.out}")
+    return 0
+
+
+def add_branch_figure_parser(sub: argparse._SubParsersAction) -> None:
+    """`branch-figure`: the resampling curve, as a PNG for a write-up."""
+    figure = sub.add_parser("branch-figure", help="plot P(odd) against prefix length")
+    figure.add_argument("--sweep", type=Path, action="append", required=True)
+    figure.add_argument("--label", action="append", required=True)
+    figure.add_argument("--title", default="Where the answer is decided")
+    figure.add_argument("--caption", default="")
+    figure.add_argument("--out", type=Path, default=PROJECT_ROOT / "figures" / "branch-curve.png")
+    figure.set_defaults(func=cmd_branch_figure)
+
+
 def add_branch_parser(sub: argparse._SubParsersAction) -> None:
     """`branch`: resample one trace from truncation points (arXiv 2510.27484)."""
     branch = sub.add_parser(
@@ -880,6 +910,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     add_output_parsers(sub)
     add_branch_parser(sub)
+    add_branch_figure_parser(sub)
     add_interview_parser(sub)
     return parser
 

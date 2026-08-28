@@ -38,6 +38,7 @@ def test_every_subcommand_is_reachable() -> None:
         "grade",
         "validate-judge",
         "branch",
+        "branch-figure",
         "export-traces",
         "build-explainer",
         "interview",
