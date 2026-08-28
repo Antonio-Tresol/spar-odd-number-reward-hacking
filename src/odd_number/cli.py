@@ -63,6 +63,7 @@ from odd_number.environment import (
     build_prompt,
 )
 from odd_number.explainers import build_trace_explainer
+from odd_number.figures import AGREE_ARM, CONFLICT_ARM, gaming_rate_figure, gaming_rates
 from odd_number.grades import classify_parity, grade_records, summarise_by_treatment
 from odd_number.interviews import (
     SEED_REASONING_MODES,
@@ -102,7 +103,7 @@ from odd_number.rollouts import (
 )
 from odd_number.sampling import DEFAULT_SAMPLING, SamplingParams
 from odd_number.settings import PROJECT_ROOT, MissingSettingsError, Settings, load_settings
-from odd_number.traces import DEFAULT_MAX_CHARS, export_trace_chunks, skipped_files
+from odd_number.traces import DEFAULT_MAX_CHARS, export_trace_chunks, load_traces, skipped_files
 
 # Errors in a row before giving up. A bad key or model name fails identically
 # every time, and burning the full budget to prove it is an expensive way to
@@ -717,6 +718,30 @@ def cmd_branch_figure(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_gaming_figure(args: argparse.Namespace) -> int:
+    """Draw the per-model odd-answer rate under the conflicting grader."""
+    traces = load_traces(args.results_dir)
+    conflict = gaming_rates(traces, CONFLICT_ARM)
+    agree = gaming_rates(traces, AGREE_ARM)
+    if not conflict:
+        print(f"no {CONFLICT_ARM!r} traces under {args.results_dir}", file=sys.stderr)
+        return 2
+    print(f"{len(conflict)} models, {sum(r.parseable for r in conflict)} conflict rollouts")
+    figure = gaming_rate_figure(conflict, agree)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(args.out, dpi=200, bbox_inches="tight")
+    print(f"wrote {args.out}")
+    return 0
+
+
+def add_gaming_figure_parser(sub: argparse._SubParsersAction) -> None:
+    """`gaming-figure`: the per-model rate, as a PNG for a write-up."""
+    figure = sub.add_parser("gaming-figure", help="plot the odd-answer rate per model")
+    figure.add_argument("--results-dir", type=Path, default=PROJECT_ROOT / "results")
+    figure.add_argument("--out", type=Path, default=PROJECT_ROOT / "figures" / "gaming-rate.png")
+    figure.set_defaults(func=cmd_gaming_figure)
+
+
 def add_branch_figure_parser(sub: argparse._SubParsersAction) -> None:
     """`branch-figure`: the resampling curve, as a PNG for a write-up."""
     figure = sub.add_parser("branch-figure", help="plot P(odd) against prefix length")
@@ -911,6 +936,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_output_parsers(sub)
     add_branch_parser(sub)
     add_branch_figure_parser(sub)
+    add_gaming_figure_parser(sub)
     add_interview_parser(sub)
     return parser
 

@@ -87,6 +87,12 @@ and provider endpoint per model, temperature 1.0.
 | DeepSeek V4-Flash | 0/40 | 0.0% | [0.0%, 8.8%] | 0/40 | 472 / 407 |
 | GLM-5.3 | 0/40 | 0.0% | [0.0%, 8.8%] | 0/40 | 2,645 / 671 |
 
+Four of nine answered odd at least once, and one of those four is separated from
+the rest by more than noise. A model seen at 0 of 40 has a Wilson upper bound of
+8.8%, so any rate below that is consistent with never answering odd. Kimi K3's
+interval clears it; qwen3.8-27b's runs from 7.1%, and MiniMax M3 and qwen3.5-27b
+sit inside it at one gamer each. `figures/gaming-rate.png` draws this.
+
 Reasoning is longer under conflict for every model that reasons, by a factor of
 1.2 to 16.4. The conflict is doing work even where the answer stays even.
 
