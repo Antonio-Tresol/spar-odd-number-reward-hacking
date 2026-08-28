@@ -254,10 +254,11 @@ first 2,131 characters it answers odd 28 times in 29, and from 2,276 characters
 onward 240 times out of 240 across eight branch points.
 The whole shift happens across sentences [11] to [42], a fifth of the trace.
 
-The empty-prefix cells of the two traces swept so far pool, being one prompt,
-one pin, one sampling configuration and 59 distinct seeds: 13 of 59 odd, 22.0%
-[13.4%, 34.1%], against the chat path's 6 of 40, Fisher p = 0.44. The
-resampling harness reproduces the collection-time rate.
+The empty-prefix cells of all three traces swept are one condition, being one
+prompt, one pin, one sampling configuration and a distinct seed per row. They
+agree pairwise and pool to 16 of 89 odd, 18.0% [11.4%, 27.2%], against the chat
+path's 6 of 40, Fisher p = 0.80. The resampling harness reproduces the
+collection-time rate.
 
 ### What sits in the window
 
@@ -474,7 +475,8 @@ position-zero rate previously read 12/39, 30.8%, and concluded the point
 estimate doubles against the chat path. That figure belongs to the
 `system_added` cell of section 4. No branch file has ever held a 39-row
 position-zero cell, and the claim cited only code as its evidence. The pooled
-measurement is 13/59, 22.0%, Fisher p = 0.44 against the chat path.
+measurement across the three swept traces is 16/89, 18.0%, Fisher p = 0.80
+against the chat path.
 
 ## Appendix: methods
 

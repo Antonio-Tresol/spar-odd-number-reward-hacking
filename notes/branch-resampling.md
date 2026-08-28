@@ -47,20 +47,22 @@ characters.
 
 ## Branch position zero reproduces the chat path
 
-The empty-prefix cells of the two source traces swept so far are the same
-condition: all 42 `conflict-grader` rollouts in the source file share one
-prompt, `prefix_chars` is 0 on both, the pin and sampling are identical, and the
-59 rows carry 59 distinct seeds (`derive_seed` keys on the source index, so the
-two traces never draw the same sample). They pool.
+The empty-prefix cells of the three source traces are the same condition: all 42
+`conflict-grader` rollouts in the source file share one prompt, `prefix_chars` is
+0 on all three, the pin and sampling are identical, and every row carries a
+distinct seed (`derive_seed` keys on the source index, so two traces never draw
+the same sample). They agree pairwise, at Fisher p = 1.00, 0.30 and 0.30, so
+they pool.
 
 | | odd / n | rate | Wilson 95% |
 |---|---|---|---|
 | trace 14, position zero | 7/30 | 23.3% | [11.8%, 40.9%] |
 | trace 21, position zero | 6/29 | 20.7% | [9.8%, 38.4%] |
-| **pooled** | **13/59** | **22.0%** | **[13.4%, 34.1%]** |
+| trace 17, position zero | 3/30 | 10.0% | [3.5%, 25.6%] |
+| **pooled** | **16/89** | **18.0%** | **[11.4%, 27.2%]** |
 | chat path (`Q1.H1.E1.C1`) | 6/40 | 15.0% | [7.1%, 29.1%] |
 
-Fisher exact, pooled against the chat path: p = 0.44.
+Fisher exact, pooled against the chat path: p = 0.80.
 
 `Q1.H8.E1.C1` previously read "12/39 (30.8%), Fisher p = 0.11, point estimate
 doubles". That figure is the `system_added` conflict count from `Q1.H7.E6.C1`,
