@@ -161,7 +161,10 @@ def branch_curve_figure(curves: list[BranchCurve], title: str, caption: str) -> 
     axes.grid(axis="y", color=CONTROL_INK, alpha=0.15, linewidth=0.7)
     for side in ("top", "right"):
         axes.spines[side].set_visible(False)
-    axes.legend(frameon=False, loc="lower right", fontsize=9)
+    # "best" rather than a fixed corner: a falling curve and a rising one put
+    # their empty space in different places, and a legend over the data is worse
+    # than one that moves between figures.
+    axes.legend(frameon=False, loc="best", fontsize=9)
     figure.subplots_adjust(bottom=0.30)
     figure.text(0.035, 0.10, caption, fontsize=8.5, color=CAPTION_INK, va="top", wrap=True)
     return figure

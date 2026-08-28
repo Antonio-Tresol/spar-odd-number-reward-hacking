@@ -186,6 +186,35 @@ An earlier draft of this note placed each rate one sentence late, reading
 the corrected reading the reward arithmetic sits inside a span that moves the
 rate by 30 points, where the earlier reading had it outside every moving span.
 
+## The curve follows the trace, and a compliant trace has a contested middle
+
+We swept two more traces from the same conflict pool: trace 21, which answered
+odd, and trace 17, which answered even. Both start from the same prompt as trace
+14, so all three begin at the same condition, and each whole-trace anchor leaves
+the model only to close its reasoning and give a number.
+
+| trace | source answer | position zero | middle | end |
+|---|---|---|---|---|
+| 14 | odd (1) | 7/30 = 23% | 25/30 = 83% at 32 | 30/30 = 100% at 205 |
+| 21 | odd (1) | 6/29 = 21% | 8/21 = 38% at 18 | 30/30 = 100% at 163 |
+| 17 | even (2) | 3/30 = 10% | 10/30 = 33% at 121 | 0/30 = 0% at 364 |
+
+We found that each curve ends at its own trace's answer. That is the check on
+the instrument: a curve that rises for an odd trace and falls for an even one,
+from a shared starting condition, is measuring the trace rather than the
+harness.
+
+We also found that the even trace rises before it falls. Trace 17 goes from 3 of
+30 at position zero to 10 of 30 at sentence 121, then to 1 of 30 at 243 and 0 of
+30 at 364, with Fisher p = 0.0056 between the peak and the 243 cell. A third of
+the continuations from a prefix a third of the way through that trace answer
+odd. An even answer in this environment is therefore not a trace that never
+approached the odd one. It is a trace whose contested phase resolved the other
+way, somewhere between sentences 121 and 243.
+
+Trace 17 has four branch points and trace 21 three, so these curves locate the
+resolution inside a wide bracket rather than at a sentence.
+
 ## The same prefixes under the affirming prompt
 
 `Q1.H7.E6.C2` left "the model resolved the conflict" tied with "the model

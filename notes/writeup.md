@@ -45,6 +45,14 @@ rate to 50%. What takes it to 83% is the span where the prompt acquires a genre,
 metadata reveals scoring". From that prefix 83% of continuations answer odd,
 while the trace's own next five sentences argue for the even answer.
 
+**A compliant trace has a contested middle of its own.** Two more traces from
+the same pool, one that answered odd and one that answered even, each end at
+their own answer: 30 of 30 odd and 0 of 30 odd at their whole-trace anchors,
+from the same starting condition. The even trace rises before it falls, from 3
+of 30 at position zero to 10 of 30 a third of the way through, then to 1 of 30
+and 0 of 30. An even answer here is a trace whose contested phase resolved
+toward the user, rather than one that never approached the odd answer.
+
 **Continuing the same prefixes under the affirming prompt separates two
 mechanisms that the prompt-level result leaves tied.** A prefix of 2,131
 characters of the model's own reasoning takes P(odd) from 23% to 97% under the
@@ -353,6 +361,36 @@ traces differing in which lean is standing when generation stops. On this trace
 the lean standing mid-way through is a poor guide to the outcome. The reading
 and the resampling disagree, and the resampling measures a counterfactual.
 
+### The curve follows the trace, and a compliant trace has a contested middle
+
+We swept two more traces from the same conflict pool: trace 21, which answered
+odd, and trace 17, which answered even. Both start from the same prompt as trace
+14, so all three begin at the same condition, and each whole-trace anchor leaves
+the model only to close its reasoning and give a number.
+
+| trace | source answer | position zero | middle | end |
+|---|---|---|---|---|
+| 14 | odd (1) | 7/30 = 23% | 25/30 = 83% at 32 | 30/30 = 100% at 205 |
+| 21 | odd (1) | 6/29 = 21% | 8/21 = 38% at 18 | 30/30 = 100% at 163 |
+| 17 | even (2) | 3/30 = 10% | 10/30 = 33% at 121 | 0/30 = 0% at 364 |
+
+We found that each curve ends at its own trace's answer. That is the check on
+the instrument: a curve that rises for an odd trace and falls for an even one,
+from a shared starting condition, is measuring the trace rather than the
+harness.
+
+We also found that the even trace rises before it falls. Trace 17 goes from 3 of
+30 at position zero to 10 of 30 at sentence 121, then to 1 of 30 at 243 and 0 of
+30 at 364, with Fisher p = 0.0056 between the peak and the 243 cell. A third of
+the continuations from a prefix a third of the way through that trace answer
+odd. An even answer in this environment is therefore not a trace that never
+approached the odd one. It is a trace whose contested phase resolved the other
+way, somewhere between sentences 121 and 243.
+
+Trace 17 has four branch points and trace 21 three, so these curves locate the
+resolution inside a wide bracket rather than at a sentence.
+`figures/branch-curve-three-traces.png` draws all three.
+
 ### The cross-prompt test
 
 Section 4 left one question open: does the affirming sentence work by resolving
@@ -453,11 +491,12 @@ and it should be read at that strength.
 
 ## 7. Limits
 
-The resampling covers one trace of one model on one day. It locates where that
-trace became committed. Each span in section 5 brackets ten or eleven sentences,
-so a span's contribution is shared among its sentences, and attributing it
-further needs a per-sentence sweep. The even control trace has yet to be swept,
-so nothing here describes how a compliant trace's curve looks.
+The resampling covers three traces of one model on one day, and the detailed
+curve and the whole cross-prompt comparison come from one of them. Each span in
+section 5 brackets ten or eleven sentences, so a span's contribution is shared
+among its sentences, and attributing it further needs a per-sentence sweep. The
+two control traces carry four and three branch points, which locates their
+resolution inside a wide bracket.
 
 A first draft of section 5 placed every rate one sentence late, reading a prefix
 of *k* sentences as including sentence [k] when it holds indices 0 to *k*-1. The
