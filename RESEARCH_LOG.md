@@ -134,6 +134,17 @@ Entry format:
   returned no number in the denominator, and the deliberation ratios in
   `Q1.H7.E6.C2` compared a matched ratio against an unmatched one.
 
+* One more thing, and it changed a claim: refining trace 14's transition window
+  to five-sentence resolution (twenty branch points) revised the attribution I
+  had recorded from the ten-sentence grid. Pooling adjacent points into bands,
+  the rate is 19/90 through sentence [10], 52/90 through [20] to [22], 93/118
+  through [25] to [41], and 58/59 through [42] to [45]. The coarse grid had
+  split the first move across two brackets and made engaging with the reward and
+  naming the genre look equal at +30 and +33 points. They are not equal: the
+  first is worth about twice the second. Recording this because it is the second
+  time today that a tidier reading fell over when the data got finer, and both
+  times the tidier reading was mine rather than the data's.
+
 * What I will do next: Every `Q1.H8` claim rests on one model, and the detailed
   curve and the whole cross-prompt comparison rest on trace 14 alone. Kimi K3 is
   the natural second model and needs its chat template transcribed and validated
