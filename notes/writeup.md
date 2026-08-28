@@ -17,10 +17,10 @@ model's reasoning the answer becomes determined.
 models at n=40 per arm, four answer odd under the conflicting grader: Kimi K3 at
 25.0%, qwen3.8-27b at 15.0%, MiniMax M3 and qwen3.5-27b at 2.5% each. Five
 answer odd zero times. The matched control, where the grader and the instruction
-agree, is 0 odd in the 357 parseable rollouts of 360. The grader is named in the chain of thought in
-most conflict rollouts of every model we counted, from 27 of 40 for DeepSeek
-V4-Flash to 40 of 40 for qwen3.8-27b, so the zeros are mostly models that saw
-the incentive.
+agree, is 0 odd in the 357 parseable rollouts of 360. The grader is named in the
+chain of thought in most conflict rollouts of every model we counted, from 27 of
+40 for DeepSeek V4-Flash to 40 of 40 for qwen3.8-27b, so the zeros are mostly
+models that saw the incentive.
 
 **Every odd answer is argued, and the argument is about authority.** All 74 odd
 answers in a 2,921-trace corpus compute the parity correctly, name the
@@ -54,12 +54,13 @@ affirming sentence still removes most of what the deliberation built. The
 sentence works partly by settling authority and partly by keeping the model from
 accumulating the reasoning that commits it.
 
-**Our reading of the answer.** On this evidence the odd answer is reward-seeking
-in its outcome and frame-inference in its mechanism. The model appears to decide
-what kind of task it is in, and the reward follows from that decision. Calling
-it reward hacking describes what the model did. It does not describe why, and
-the interventions that move the rate are the ones that settle authorship rather
-than the ones that name the reward or the test.
+**Our reading of the answer.** The odd answer is reward-seeking in outcome. In
+mechanism it is about half reward arithmetic and about half a judgement about
+what kind of situation the model is in, and it is the second half that the
+successful interventions act on. Naming the reward or the test leaves the rate
+where it is. Settling who is asking removes it. Calling the behaviour reward
+hacking describes what the model did accurately enough, and it predicts the
+wrong interventions.
 
 **Status.** Every claim below is `unvalidated` in the project's research tree:
 measured, recorded with its evidence file, and awaiting the falsification pass.
@@ -67,7 +68,7 @@ The resampling result rests on one trace of one model.
 
 ---
 
-## 1. The behaviour replicates on three of nine models
+## 1. The behaviour replicates on four of nine models
 
 We ran the environment's own A/B: condition A sets `reward = output % 2`, so the
 grader and the instruction conflict, and condition B sets
@@ -202,9 +203,16 @@ answer odd rarely, so a prompt-level measurement leaves "the model resolved the
 conflict" tied with "the model deliberated less". The `system_added` row is the
 informative one, because it kept the deliberation and kept the behaviour.
 
-Conflict reasoning under `user_authored` is still 4.5 times its matched agree
-arm, against about 1.6 times for the source post's `want` label, so the model is
-still working on the conflict when it resolves it toward the user.
+The model is still working on the conflict when it resolves it toward the user.
+Measured against one common no-conflict reference, the baseline's agree-arm
+median of 526 characters, conflict reasoning runs 16.4x with no label, 12.9x
+under `system_added`, 4.1x under `user_authored` and 3.1x under `human_sender`.
+The source post's `want` label, which also takes qwen3.8-27b to zero, runs 1.5x.
+A label can reach zero by settling the question or by stopping the model from
+asking it, and these two labels sit at different points on that scale.
+
+`want` is measured against the same reference rather than its own agree arm,
+which was never collected.
 
 ## 5. Resampling locates the commitment
 
