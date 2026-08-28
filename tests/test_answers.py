@@ -14,6 +14,8 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+import pytest
+
 from odd_number.answers import (
     ANSWER_SCHEMA,
     EMPTY,
@@ -170,3 +172,17 @@ def test_fixture_verdicts_compare_number_only(tmp_path: Path) -> None:
     assert fixtures == [Fixture("**7**", 7, "bold"), Fixture("no", None, "")]
     verdicts = validate_judge(read_answer_literally, fixtures)
     assert [v.agrees for v in verdicts] == [False, True]
+
+
+def test_a_file_with_nothing_to_judge_leaves_no_sidecar(tmp_path: Path) -> None:
+    """Grading a file of bare integers used to leave an empty sidecar per file."""
+    cache_path = tmp_path / "c.answers.jsonl"
+    with AnswerJudge(client=object(), cache_path=cache_path) as judge:  # type: ignore[arg-type]
+        assert judge.read_answer("42").number == 42
+    assert not cache_path.exists()
+
+
+def test_judging_outside_the_context_manager_is_refused(tmp_path: Path) -> None:
+    judge = AnswerJudge(client=object(), cache_path=tmp_path / "c.answers.jsonl")  # type: ignore[arg-type]
+    with pytest.raises(RuntimeError, match="must be entered"):
+        judge.open_sidecar()

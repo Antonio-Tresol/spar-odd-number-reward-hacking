@@ -389,17 +389,36 @@ class AnswerJudge:
         self.cache_path = cache_path
         self.cache = load_cache(cache_path)
         self.handle: TextIO | None = None
+        self.entered = False
         self.calls = 0
 
     def __enter__(self) -> AnswerJudge:
-        self.cache_path.parent.mkdir(parents=True, exist_ok=True)
-        self.handle = self.cache_path.open("a", encoding="utf-8")
+        self.entered = True
         return self
 
     def __exit__(self, *exc_info: object) -> None:
+        self.entered = False
         if self.handle is not None:
             self.handle.close()
             self.handle = None
+
+    def open_sidecar(self) -> TextIO:
+        """The sidecar handle, created when there is a first judgement to write.
+
+        Lazily, so grading a file whose every response is a bare integer leaves
+        no sidecar behind. Opening on entry produced an empty file per results
+        file, and 22 of those were deleted by hand once already.
+
+        Raises:
+            RuntimeError: when called outside the context manager, which would
+                leak the handle.
+        """
+        if not self.entered:
+            raise RuntimeError("AnswerJudge must be entered before judging")
+        if self.handle is None:
+            self.cache_path.parent.mkdir(parents=True, exist_ok=True)
+            self.handle = self.cache_path.open("a", encoding="utf-8")
+        return self.handle
 
     def read_answer(self, response: str) -> Answer:
         decided = read_empty_answer(response) or read_literal_answer(response)
@@ -409,10 +428,9 @@ class AnswerJudge:
         cached = self.cache.get(key)
         if cached is not None:
             return cached
-        if self.handle is None:
-            raise RuntimeError("AnswerJudge must be entered before judging")
+        handle = self.open_sidecar()
         answer = ask_judge(self.client, response)
         self.calls += 1
         self.cache[key] = answer
-        append_judgement(self.handle, key, answer)
+        append_judgement(handle, key, answer)
         return answer
