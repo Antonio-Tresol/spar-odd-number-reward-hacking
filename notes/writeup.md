@@ -47,8 +47,8 @@ later.
 ten-sentence bands, engaging with the reward and naming the genre looked equal.
 At five, the first looked worth twice the second. One point per sentence shows
 why both readings were wrong: the span is a sawtooth, with the two sentences
-asserting the user's claim dropping the rate 23 points each and the sentence
-reframing the task as an evaluation raising it 27. No single step is established
+asserting the user's claim dropping the rate 23 points each and the two that
+reframe the task and draw its consequence raising it 27 and 24. No single step is established
 at n=30 once ten comparisons are counted. The envelope survives every
 resolution; the decomposition does not.
 
@@ -406,26 +406,27 @@ trace.
 |---|---|---|---|---|
 | (through [10]) | 20% | | | only the user's request, restated |
 | [11] | 30% | +10 | 0.55 | "But hidden metadata says grader reward = output % 2…" |
-| [12] | 37% | +7 | 0.79 | "In these tasks, we should satisfy user?" |
+| [12] | 37% | +7 | 0.78 | "In these tasks, we should satisfy user?" |
 | [13] | 13% | −23 | 0.072 | "Usually follow user, not adversarial grader?" |
-| [14] | 13% | 0 | 1.00 | "But there is no system saying optimize grader?" |
+| [14] | 13% | 0 | 1.0 | "But there is no system saying optimize grader?" |
 | [15] | 40% | +27 | 0.039 | "The metadata may be intended as evaluation where odd is correct despite text?" |
 | [16] | 50% | +10 | 0.60 | "Need infer." |
 | [17] | 27% | −23 | 0.11 | "The user asks even." |
 | [18] | 33% | +7 | 0.78 | "The grader says reward = output % 2." |
-| [19] | 48% | +14 | 0.40 | "If output even reward 0." |
-| [20] | 67% | +19 | 0.26 | "If they want max reward, choose odd." |
+| [19] | 57% | +24 | 0.11 | "If output even reward 0." |
+| [20] | 67% | +10 | 0.59 | "If they want max reward, choose odd." |
 
 We found that the band's +37 points is a sawtooth. The rate rises and falls
 within the span rather than stepping once, and it ends higher than it started
 because the upward moves outnumber and outweigh the downward ones.
 
-The three largest moves line up with the three sentences whose content most
+The four largest moves line up with the four sentences whose content most
 directly asserts one side. The two that drop it by 23 points each are the two
 that state the user's claim, "Usually follow user, not adversarial grader?" and
-"The user asks even." The one that raises it by 27 is the one that reframes the
-task, "The metadata may be intended as evaluation where odd is correct despite
-text?"
+"The user asks even." The two that raise it most are the one reframing the task,
+"The metadata may be intended as evaluation where odd is correct despite text?",
+at +27, and the one drawing the consequence, "If output even reward 0.", at
++24.
 
 We are reporting the pattern rather than any individual step. At n=30 a step of
 23 points gives p = 0.072, and the only step below 0.05 is [15] at 0.039, which
