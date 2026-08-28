@@ -45,16 +45,15 @@ rate to 50%. What takes it to 83% is the span where the prompt acquires a genre,
 metadata reveals scoring". From that prefix 83% of continuations answer odd,
 while the trace's own next five sentences argue for the even answer.
 
-**A compliant trace has a contested middle of its own, and commitment arrives at
-different points in different traces.** Two more traces from the same pool, one
-that answered odd and one that answered even, each end at their own answer from
-the same starting condition. The even trace rises before it falls: 3 of 28 at
-position zero, 10 of 30 a third of the way through, 1 of 30 at two thirds, 0 of
-30 at the end. So an even answer here is a trace whose contested phase resolved
-toward the user, rather than one that never approached the odd answer. The
-second odd trace is still a coin flip two thirds of the way through, where trace
-14 had saturated by a fifth, so the outcome being determined at a locatable
-point holds across all three while the point itself moves.
+**A compliant trace is contested too, and commitment arrives at different points
+in different traces.** Two more traces from the same pool, one that answered odd
+and one that answered even, each end at their own answer from the same starting
+condition. The even trace spends its first third contested, running between 13%
+and 33% odd, then resolves sharply: 10 of 30 at a third of the way through, 0 of
+29 at 45%, Fisher p = 0.0008. So an even answer here is a trace whose contested
+phase resolved toward the user, and that resolution is as locatable as the odd
+trace's. Where it sits varies: trace 14 saturates by a fifth of the way through,
+trace 17 resolves near 45%, and trace 21 is still a coin flip at two thirds.
 
 **Continuing the same prefixes under the affirming prompt separates two
 mechanisms that the prompt-level result leaves tied.** A prefix of 2,131
@@ -370,13 +369,13 @@ We swept two more traces from the same conflict pool: trace 21, which answered
 odd, and trace 17, which answered even. Both start from the same prompt as trace
 14, so all three begin at the same condition.
 
-| trace | answer | sentences | 0% | ~11% | ~22% | ~33% | ~67% | anchor |
-|---|---|---|---|---|---|---|---|---|
-| 14 | odd (1) | 205 | 7/30 = 23% | 17/30 = 57% | 30/30 = 100% | 30/30 = 100% | 30/30 = 100% | 30/30 = 100% |
-| 21 | odd (1) | 163 | 7/30 = 23% | 8/21 = 38% | — | 15/29 = 52% | 15/30 = 50% | 30/30 = 100% |
-| 17 | even (2) | 364 | 3/28 = 11% | 9/30 = 30% | 4/29 = 14% | 10/30 = 33% | 1/30 = 3% | 0/30 = 0% |
+| trace | answer | sentences | 0% | ~11% | ~22% | ~33% | ~45% | ~67% | anchor |
+|---|---|---|---|---|---|---|---|---|---|
+| 14 | odd (1) | 205 | 7/30 = 23% | 15/30 = 50% | 30/30 = 100% | 30/30 = 100% | 30/30 = 100% | 30/30 = 100% | 30/30 = 100% |
+| 21 | odd (1) | 163 | 7/30 = 23% | 8/21 = 38% | — | 15/29 = 52% | — | 15/30 = 50% | 30/30 = 100% |
+| 17 | even (2) | 364 | 3/28 = 11% | 9/30 = 30% | 4/30 = 13% | 10/30 = 33% | 0/29 = 0% | 1/30 = 3% | 0/30 = 0% |
 
-Columns are positions through the trace, so the traces line up despite their
+Columns are positions through each trace, so the three line up despite their
 different lengths. The anchor holds every sentence, which leaves the model only
 to close its reasoning and give a number.
 
@@ -385,24 +384,23 @@ the instrument: a curve that rises for an odd trace and falls for an even one,
 from a shared starting condition, is measuring the trace rather than the
 harness.
 
-We also found that the even trace rises before it falls. Trace 17 goes from 3 of
-28 at position zero to 10 of 30 a third of the way through, then to 1 of 30 at
-two thirds and 0 of 30 at the anchor, with Fisher p = 0.0056 between the peak
-and the two-thirds cell. An even answer in this environment is therefore not a
-trace that never approached the odd one. It is a trace whose contested phase
-resolved the other way.
+We also found that the even trace spends its first third contested, and then
+resolves sharply. Trace 17 sits between 13% and 33% from a ninth of the way
+through to a third, peaks at 10 of 30, and is 0 of 29 by 45%: Fisher p = 0.0008
+between the peak and the next point. An even answer in this environment is
+therefore not a trace that never approached the odd one. It is a trace whose
+contested phase resolved the other way, and the resolution is as locatable as
+the odd trace's.
 
-And we found that where the commitment sits varies by trace. Trace 14 is at 100%
-by a fifth of the way through and holds it for the remaining 160 sentences.
-Trace 21 is still a coin flip two thirds of the way through, so it commits
-somewhere in its final third. The claim that the outcome becomes determined at a
-locatable point survives all three. The claim that it happens early is trace
-14's alone.
+And we found that where the commitment sits varies. Trace 14 is at 100% by a
+fifth of the way through and holds it for the remaining 160 sentences. Trace 17
+resolves between a third and 45%. Trace 21 is still a coin flip two thirds of
+the way through, so it commits somewhere in its final third. The claim that the
+outcome becomes determined at a locatable point survives all three. The claim
+that it happens early is trace 14's alone.
 
-An anchor carries no information about commitment, since the model has only to
-close and answer, so trace 21's last informative point is its 50% at sentence
-109. Trace 17 has six branch points and trace 21 five, which locates their
-resolution inside a wide bracket rather than at a sentence.
+Trace 21 has five branch points and trace 17 nine, so their resolutions are
+bracketed rather than placed at a sentence.
 `figures/branch-curve-three-traces.png` draws all three.
 
 ### The cross-prompt test

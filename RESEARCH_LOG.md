@@ -121,12 +121,27 @@ Entry format:
   incentive is worth +30 points and identifying the genre +33, so reading the
   reward is about half the story rather than none of it.
 
-* What I will do next: Fill the deep cross-prompt cells at 68, 137 and 205, and
-  top up the plain sweep at 68 so that cell has a matched baseline. Trace 21
-  (odd) and trace 17 (the even control) were dropped for time, so nothing yet
-  says how a compliant trace's curve looks, which is the obvious next sweep. The
-  write-up needs a `validate-claims` pass before it leaves the project, and every
-  claim in it is still `unvalidated`.
+* What I did after that: Swept the two remaining source traces. Trace 21 (odd)
+  and trace 17 (even) both end at their own answers from the shared starting
+  condition, which is the check on the instrument. Trace 17 turned out to be
+  contested through its first third, 3/28 at zero rising to 10/30 at a third of
+  the way through, then 0/29 at 45% (Fisher p = 0.0008), so a compliant trace is
+  one whose contested phase resolved the other way rather than one that never
+  approached the odd answer. Trace 21 is still 15/30 two thirds of the way
+  through, where trace 14 had saturated by a fifth, so the commitment being
+  locatable holds across all three traces while its position moves. Two more
+  small corrections came out of this: `read_branch_curve` counted two calls that
+  returned no number in the denominator, and the deliberation ratios in
+  `Q1.H7.E6.C2` compared a matched ratio against an unmatched one.
+
+* What I will do next: Every `Q1.H8` claim rests on one model, and the detailed
+  curve and the whole cross-prompt comparison rest on trace 14 alone. Kimi K3 is
+  the natural second model and needs its chat template transcribed and validated
+  at branch position zero first. A per-sentence sweep across trace 14's
+  sentences [11] to [42] would say which sentence carries the jump, at about 960
+  resamples. The paraphrase gaps are unchanged. The write-up needs a
+  `validate-claims` pass before it leaves the project, and every claim in it is
+  still `unvalidated`. Handoff in `notes/handoff-2026-08-28-b.md`.
 
 ### 2026-08-27
 
