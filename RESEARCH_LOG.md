@@ -83,6 +83,51 @@ Entry format:
   statement about n rather than about wording. Handoff for another machine in
   `notes/handoff-2026-08-28.md`.
 
+### Addendum, 2026-08-28 — the branch curve, the cross-prompt read, and two corrections
+
+* What I did: Finished the trace-14 sweep through its transition window at n=30,
+  then built and ran the read that `Q1.H7.E6.C2` could not do. `branch
+  --prompt-from` continues one condition's prefixes under another condition's
+  prompt; it takes a different seed key so a cross sweep cannot repeat the
+  same-prompt sweep's draws, and its own file so the two cannot land on one
+  curve. Ran trace 14's prefixes under the `user_authored` prompt at n=30 on the
+  five shared branch points from 0 to 43. Added `branch-figure` and
+  `branch_curves.py` to draw the curves, and drafted the deliverable in
+  `notes/writeup.md`. Throughput turned out to be the binding constraint rather
+  than money: at 3 workers the sweep managed 1.2 successes a minute against 40%
+  upstream 429s, at 10 it managed 8 with almost none, and at 24 it collected
+  nothing at all in 75 seconds.
+
+* What I expected vs what happened: The curve is sharper than expected. P(odd)
+  runs 23% from the prompt alone, 20% after 11 sentences, 50% after 22, 83%
+  after 32, 97% after 43, and 100% from 91 on, 179 of 179. The cross-prompt run
+  was designed as a two-way test and came back three-way. Under the affirming
+  prompt an empty prefix gives 0/30 and a prefix of 2,131 characters gives 8/28,
+  so deliberation still commits the model under the prompt that took gaming to
+  zero; and that same prefix gives 28/29 under the plain prompt, so the sentence
+  undoes most of what the deliberation built. Those characters are worth +74
+  points under one prompt and +29 under the other.
+
+* What this changes about my thinking: Two corrections, both of which mattered.
+  `Q1.H8.E1.C1` reported 12/39 at branch position zero; that is
+  `Q1.H7.E6.C1`'s `system_added` count, and no branch file has ever held a
+  39-row position-zero cell. The real figure pools the two sweeps' empty-prefix
+  cells, which are one condition under 59 distinct seeds: 13/59, 22.0%, Fisher
+  p = 0.44 against the chat path, so the two paths agree rather than differing
+  by a doubled point estimate. And my first reading of the curve placed every
+  rate one sentence late, since a prefix of k sentences holds indices 0 to k-1.
+  That error put the reward arithmetic outside every span that moves the rate
+  and supported a tidier claim than the data does. Corrected, computing the
+  incentive is worth +30 points and identifying the genre +33, so reading the
+  reward is about half the story rather than none of it.
+
+* What I will do next: Fill the deep cross-prompt cells at 68, 137 and 205, and
+  top up the plain sweep at 68 so that cell has a matched baseline. Trace 21
+  (odd) and trace 17 (the even control) were dropped for time, so nothing yet
+  says how a compliant trace's curve looks, which is the obvious next sweep. The
+  write-up needs a `validate-claims` pass before it leaves the project, and every
+  claim in it is still `unvalidated`.
+
 ### 2026-08-27
 
 * What I did: Two strands. First, a construct-validity check on the environment

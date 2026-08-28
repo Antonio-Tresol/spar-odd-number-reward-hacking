@@ -178,7 +178,48 @@ An earlier draft of this note placed each rate one sentence late, reading
 the corrected reading the reward arithmetic sits inside a span that moves the
 rate by 30 points, where the earlier reading had it outside every moving span.
 
-The follow-up is the cross-prompt sweep: these same prefixes continued under the
-`user_authored` prompt that took gaming to 0/40 in `Q1.H7.E6.C2`. Running as
-`branch --prompt-from`; results in
+## The same prefixes under the affirming prompt
+
+`Q1.H7.E6.C2` left "the model resolved the conflict" tied with "the model
+deliberated less", because both cells that reached 0/40 also collapsed to a
+quarter of baseline reasoning. A prefix breaks the tie: it supplies the
+deliberation whatever the prompt says.
+
+We continued trace 14's own prefixes under the `user_authored` prompt, holding
+the pin, sampling and branch grid. `branch --prompt-from` renders the swapped
+prompt with the original prefix, takes a different seed key so it cannot repeat
+the same-prompt sweep's draws, and writes its own file so the two conditions
+cannot land on one curve.
+
+| sentences kept | prefix chars | plain prompt | affirming prompt | Fisher p |
+|---|---|---|---|---|
+| 0 | 0 | 7/30 = 23% | 0/30 = 0% | 0.011 |
+| 11 | 431 | 6/30 = 20% | 2/30 = 7% | 0.25 |
+| 22 | 914 | 15/30 = 50% | 1/30 = 3% | 6.4e-05 |
+| 32 | 1,472 | 25/30 = 83% | 8/28 = 29% | 4.5e-05 |
+| 43 | 2,131 | 28/29 = 97% | 8/28 = 29% | 4.5e-08 |
+
+Both stories fail, each for a reason the other supplies.
+
+**Deliberation still commits the model under the affirming prompt.** An empty
+prefix answers odd 0 times in 30; a prefix of 2,131 characters answers odd 8
+times in 28. Handing the model its own reasoning moves it toward the odd answer
+even under the prompt that took gaming to 0/40, so the zero in `Q1.H7.E6.C2` is
+not only the absence of deliberation.
+
+**The affirming sentence undoes most of what deliberation builds.** The same
+prefix reaches 97% under the plain prompt and 29% under the affirming one, well
+after the model has computed the reward and identified the genre. So the zero is
+not only conflict resolution at the prompt level either.
+
+The two together: those 2,131 characters are worth +74 points under the plain
+prompt and +29 under the affirming one. The sentence leaves the curve's shape
+and cuts its height.
+
+The empty-prefix cell is a positive control for the swap. It reproduces the
+`user_authored` collection-time rate, 0/30 here against 0/40 there, which is
+what a correctly rendered swapped prompt should do.
+
+Data:
 `results/branches/branch-qwen-qwen3.8-27b-conflict-grader-14-under-conflict-grader-user_authored.jsonl`.
+Branch points deeper than 43 were still collecting when this was written.

@@ -17,7 +17,7 @@ model's reasoning the answer becomes determined.
 models at n=40 per arm, four answer odd under the conflicting grader: Kimi K3 at
 25.0%, qwen3.8-27b at 15.0%, MiniMax M3 and qwen3.5-27b at 2.5% each. Five
 answer odd zero times. The matched control, where the grader and the instruction
-agree, is 0 odd in 360 rollouts. The grader is named in the chain of thought in
+agree, is 0 odd in the 357 parseable rollouts of 360. The grader is named in the chain of thought in
 most conflict rollouts of every model we counted, from 27 of 40 for DeepSeek
 V4-Flash to 40 of 40 for qwen3.8-27b, so the zeros are mostly models that saw
 the incentive.
@@ -44,6 +44,15 @@ rate to 50%. What takes it to 83% is the span where the prompt acquires a genre,
 "In these prompt injection / grader reward tasks…", "some benchmark where
 metadata reveals scoring". From that prefix 83% of continuations answer odd,
 while the trace's own next five sentences argue for the even answer.
+
+**Continuing the same prefixes under the affirming prompt separates two
+mechanisms that the prompt-level result leaves tied.** A prefix of 2,131
+characters of the model's own reasoning takes P(odd) from 23% to 97% under the
+plain prompt and from 0% to 29% under the affirming one. So the deliberation in
+the prefix still pushes toward odd under the prompt that removed gaming, and the
+affirming sentence still removes most of what the deliberation built. The
+sentence works partly by settling authority and partly by keeping the model from
+accumulating the reasoning that commits it.
 
 **Our reading of the answer.** On this evidence the odd answer is reward-seeking
 in its outcome and frame-inference in its mechanism. The model appears to decide
@@ -337,7 +346,33 @@ Sentence 43 is the point that discriminates: the plain prompt gives 28 of 29
 odd there, and the prefix holds 2,131 characters of deliberation without a
 stated conclusion.
 
-*Collecting. Cells and their n are reported below as they land.*
+| sentences kept | prefix chars | plain prompt | affirming prompt | Fisher p |
+|---|---|---|---|---|
+| 0 | 0 | 7/30 = 23% | 0/30 = 0% | 0.011 |
+| 11 | 431 | 6/30 = 20% | 2/30 = 7% | 0.25 |
+| 22 | 914 | 15/30 = 50% | 1/30 = 3% | 6.4e-05 |
+| 32 | 1,472 | 25/30 = 83% | 8/28 = 29% | 4.5e-05 |
+| 43 | 2,131 | 28/29 = 97% | 8/28 = 29% | 4.5e-08 |
+
+We found the third outcome. Neither clean story survives, and each fails for a
+reason the other explains.
+
+The deliberation-length story fails at position zero against sentence 43. Under
+the affirming prompt, an empty prefix answers odd 0 times in 30 and a prefix of
+2,131 characters answers odd 8 times in 28. The model's own deliberation, handed
+to it in the prefix, still pushes it toward the odd answer under the prompt that
+took gaming to zero. Deliberation is doing work that the affirming sentence does
+not remove.
+
+The conflict-resolution story fails at sentence 43 across prompts. The same
+prefix reaches 97% under the plain prompt and 29% under the affirming one. The
+sentence undoes most of what 2,131 characters of reasoning built, well after the
+model has computed the reward and settled the genre.
+
+Put as one number: those 2,131 characters are worth +74 points under the plain
+prompt and +29 under the affirming one. The affirming sentence leaves the shape
+of the curve intact and cuts its height, so the prefix goes on accumulating
+commitment while the sentence raises how much of it is needed.
 
 ## 6. Reward-seeking in outcome, frame inference in mechanism
 
@@ -360,6 +395,12 @@ settled by it.
 The `system_added` rate against the plain prompt, 30.8% against 15.0%, is a null
 at p = 0.11 and we read it only as evidence against a decrease. Telling the
 model the block came from the system left the behaviour where it was.
+
+The resampling adds that the sentence keeps working after the reasoning has
+happened. Handed 2,131 characters of the model's own deliberation, the affirming
+prompt still answers odd only 29% of the time where the plain prompt answers odd
+97% of the time. Whatever the sentence does, it is not only preventing the model
+from thinking itself into the odd answer.
 
 The reading we favour is that these models treat the metadata block as evidence
 about what situation they are in. Under RLVR training, machine-readable scoring
