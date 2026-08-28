@@ -38,8 +38,8 @@ prompts describe the same block. Only the second one settles who is asking.
 **Resampling locates the commitment, and it arrives before the model stops
 arguing.** Holding the first *N* sentences of one odd trace and resampling the
 rest, P(odd) runs 23% from the prompt alone, 20% after 11 sentences, 50% after
-22, 83% after 32, 97% after 43, and 100% from 91 onward, 179 of 179 across six
-branch points. Computing the reward and weighing it against the user carries the
+22, 83% after 32, 97% after 43, and 100% from 46 sentences on, 240 of 240 across
+eight branch points. Computing the reward and weighing it against the user carries the
 rate to 50%. What takes it to 83% is the span where the prompt acquires a genre,
 "In these prompt injection / grader reward tasks…", "some benchmark where
 metadata reveals scoring". From that prefix 83% of continuations answer odd,
@@ -237,18 +237,21 @@ section are drawn in `figures/branch-curve-trace14.png`.
 | 0 | 0 | 30 | 23% | [12%, 41%] |
 | 11 | 431 | 30 | 20% | [10%, 37%] |
 | 22 | 914 | 30 | 50% | [33%, 67%] |
+| 23 | 932 | 30 | 57% | [39%, 73%] |
 | 32 | 1,472 | 30 | 83% | [66%, 93%] |
 | 43 | 2,131 | 29 | 97% | [83%, 99%] |
+| 46 | 2,276 | 30 | 100% | [89%, 100%] |
+| 68 | 3,554 | 30 | 100% | [89%, 100%] |
 | 91 | 4,589 | 30 | 100% | [89%, 100%] |
 | 114 | 5,909 | 30 | 100% | [89%, 100%] |
-| 137 | 6,873 | 29 | 100% | [88%, 100%] |
+| 137 | 6,873 | 30 | 100% | [89%, 100%] |
 | 159 | 8,142 | 30 | 100% | [89%, 100%] |
 | 182 | 9,347 | 30 | 100% | [89%, 100%] |
 | 205 | 9,962 | 30 | 100% | [89%, 100%] |
 
 From the prompt alone the model answers odd about one time in five. From its own
-first 2,131 characters it answers odd nearly always, and from 4,589 characters
-onward it answers odd 179 times out of 179 across six independent branch points.
+first 2,131 characters it answers odd 28 times in 29, and from 2,276 characters
+onward 240 times out of 240 across eight branch points.
 The whole shift happens across sentences [11] to [42], a fifth of the trace.
 
 The empty-prefix cells of the two traces swept so far pool, being one prompt,
@@ -367,7 +370,8 @@ stated conclusion.
 | 22 | 914 | 15/30 = 50% | 1/30 = 3% | 6.4e-05 |
 | 32 | 1,472 | 25/30 = 83% | 8/28 = 29% | 4.5e-05 |
 | 43 | 2,131 | 28/29 = 97% | 8/28 = 29% | 4.5e-08 |
-| 137 | 6,873 | 29/29 = 100% | 18/30 = 60% | 0.00012 |
+| 68 | 3,554 | 30/30 = 100% | 8/30 = 27% | 8.3e-10 |
+| 137 | 6,873 | 30/30 = 100% | 18/30 = 60% | 0.00012 |
 | 205 | 9,962 | 30/30 = 100% | 30/30 = 100% | 1 |
 
 We found the third outcome. Neither clean story survives, and each fails for a

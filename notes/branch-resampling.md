@@ -19,33 +19,31 @@ Data: `results/branches/branch-qwen-qwen3.8-27b-conflict-grader-14.jsonl`.
 
 ## The curve
 
-n=30 per branch point where the sweep completed. Points 23, 46, 54, 65 and 68
-are partial cells from a coarser grid or from a stopped run, and their rate is
-left out rather than reported at n≤7.
+n=30 per branch point. Points 54 and 65 are partial cells left by a stopped run,
+at n=7 and n=6, and are left out of the table rather than reported at that n.
 
-| sentences kept | prefix chars | n | odd | P(odd) | Wilson 95% |
-|---|---|---|---|---|---|
-| 0 | 0 | 30 | 7 | 23% | [12%, 41%] |
-| 11 | 431 | 30 | 6 | 20% | [10%, 37%] |
-| 22 | 914 | 30 | 15 | 50% | [33%, 67%] |
-| 23 | 932 | 1 | 1 | — | — |
-| 32 | 1,472 | 30 | 25 | 83% | [66%, 93%] |
-| 43 | 2,131 | 29 | 28 | 97% | [83%, 99%] |
-| 46 | 2,276 | 2 | 2 | — | — |
-| 54 | 2,524 | 7 | 6 | — | — |
-| 65 | 3,376 | 6 | 6 | — | — |
-| 68 | 3,554 | 3 | 3 | — | — |
-| 91 | 4,589 | 30 | 30 | 100% | [89%, 100%] |
-| 114 | 5,909 | 30 | 30 | 100% | [89%, 100%] |
-| 137 | 6,873 | 29 | 29 | 100% | [88%, 100%] |
-| 159 | 8,142 | 30 | 30 | 100% | [89%, 100%] |
-| 182 | 9,347 | 30 | 30 | 100% | [89%, 100%] |
-| 205 | 9,962 | 30 | 30 | 100% | [89%, 100%] |
+| sentences kept | prefix chars | n | P(odd) | Wilson 95% |
+|---|---|---|---|---|
+| 0 | 0 | 30 | 23% | [12%, 41%] |
+| 11 | 431 | 30 | 20% | [10%, 37%] |
+| 22 | 914 | 30 | 50% | [33%, 67%] |
+| 23 | 932 | 30 | 57% | [39%, 73%] |
+| 32 | 1,472 | 30 | 83% | [66%, 93%] |
+| 43 | 2,131 | 29 | 97% | [83%, 99%] |
+| 46 | 2,276 | 30 | 100% | [89%, 100%] |
+| 68 | 3,554 | 30 | 100% | [89%, 100%] |
+| 91 | 4,589 | 30 | 100% | [89%, 100%] |
+| 114 | 5,909 | 30 | 100% | [89%, 100%] |
+| 137 | 6,873 | 30 | 100% | [89%, 100%] |
+| 159 | 8,142 | 30 | 100% | [89%, 100%] |
+| 182 | 9,347 | 30 | 100% | [89%, 100%] |
+| 205 | 9,962 | 30 | 100% | [89%, 100%] |
 
 From the prompt alone the model answers odd about one time in five. From its own
-first 2,131 characters it answers odd 28 times in 29, and from 4,589 characters
-onward 179 times in 179 across six branch points. The whole shift happens inside
-sentences 11 to 42, about a fifth of the trace and a fifth of its characters.
+first 2,131 characters it answers odd 28 times in 29, and from 2,276 characters
+onward 240 times in 240 across eight branch points. The whole shift happens
+across sentences [11] to [42], about a fifth of the trace and a fifth of its
+characters.
 
 ## Branch position zero reproduces the chat path
 
@@ -198,7 +196,8 @@ cannot land on one curve.
 | 22 | 914 | 15/30 = 50% | 1/30 = 3% | 6.4e-05 |
 | 32 | 1,472 | 25/30 = 83% | 8/28 = 29% | 4.5e-05 |
 | 43 | 2,131 | 28/29 = 97% | 8/28 = 29% | 4.5e-08 |
-| 137 | 6,873 | 29/29 = 100% | 18/30 = 60% | 0.00012 |
+| 68 | 3,554 | 30/30 = 100% | 8/30 = 27% | 8.3e-10 |
+| 137 | 6,873 | 30/30 = 100% | 18/30 = 60% | 0.00012 |
 | 205 | 9,962 | 30/30 = 100% | 30/30 = 100% | 1 |
 
 Both stories fail, each for a reason the other supplies.
