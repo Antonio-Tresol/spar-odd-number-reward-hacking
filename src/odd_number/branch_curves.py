@@ -1,9 +1,10 @@
 """P(odd) against how much of a trace was held as a prefix.
 
 One curve is one branch-resampling sweep: at each branch point the fraction of
-resamples that answered odd, with a Wilson interval. Two curves on one pair of
-axes compare the same prefixes continued under two different prompts, which is
-the comparison `Q1.H8.E2` rests on.
+resamples that answered odd, with a Wilson interval. Curves share a pair of axes
+so they can be read against each other: the same prefixes under two prompts,
+which is the comparison `Q1.H8.E2` rests on, or two source traces under one
+prompt.
 
 Branch points are placed on the x axis by prefix characters rather than by
 sentence index, so a curve is read against how much reasoning the model was
@@ -33,8 +34,11 @@ from odd_number.grades import wilson_interval
 #: line drawn through them reads as a measurement rather than as a stray.
 SOLID_TRIALS: int = 10
 
-#: Ink for the second curve. The first takes `ODD_INK` from the shared palette.
+#: Inks for the second and third curves. The first takes `ODD_INK` from the
+#: shared palette, which is the colour the gaming-rate figure gives an odd
+#: answer, so a plain-prompt odd curve reads the same way on both figures.
 SECOND_INK: str = "#1565c0"
+THIRD_INK: str = "#2e7d32"
 
 #: Room above and below the 0-1 axis, so the 0% and 100% markers and their
 #: intervals sit inside the frame instead of on it.
@@ -143,7 +147,7 @@ def branch_curve_figure(curves: list[BranchCurve], title: str, caption: str) -> 
     Raises:
         ValueError: when asked for more curves than the palette names.
     """
-    inks = (ODD_INK, SECOND_INK)
+    inks = (ODD_INK, SECOND_INK, THIRD_INK)
     if len(curves) > len(inks):
         raise ValueError(f"{len(curves)} curves, {len(inks)} inks defined")
     figure, axes = plt.subplots(figsize=(9.0, 5.4))

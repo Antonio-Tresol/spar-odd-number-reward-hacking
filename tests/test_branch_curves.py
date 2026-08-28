@@ -78,9 +78,16 @@ def test_a_zero_rate_still_gets_an_honest_interval() -> None:
 
 def test_more_curves_than_inks_is_refused() -> None:
     """Two curves silently sharing one colour would make the figure unreadable."""
-    curves = [BranchCurve(f"c{i}", (BranchRate(0, 0, 30, 1),)) for i in range(3)]
+    curves = [BranchCurve(f"c{i}", (BranchRate(0, 0, 30, 1),)) for i in range(4)]
     with pytest.raises(ValueError, match="inks defined"):
         branch_curve_figure(curves, "t", "c")
+
+
+def test_three_curves_fit_the_palette() -> None:
+    curves = [BranchCurve(f"c{i}", (BranchRate(0, 0, 30, 1),)) for i in range(3)]
+    (axes,) = branch_curve_figure(curves, "t", "c").axes
+    drawn = [ln.get_label() for ln in axes.get_lines() if not ln.get_label().startswith("_")]
+    assert drawn == ["c0", "c1", "c2"]
 
 
 def test_a_figure_draws_both_curves() -> None:
