@@ -163,10 +163,14 @@ these prompt injection / grader reward tasks…" and "some benchmark where
 metadata reveals scoring", sit inside the next band, which adds 21 points to
 79%. The last band, [42] to [45], adds 19 more and saturates.
 
-A coarser grid split that first move across two brackets and made engaging with
-the reward and naming the genre look equal, at +30 and +33 points. At five-
-sentence resolution they are not: engaging with the conflict is worth about
-twice what naming the genre is. Both spans matter, and the first matters more.
+This attribution is unstable under grid resolution, and that is worth stating
+next to it rather than only in the limits. At ten-sentence resolution the same
+data made engaging with the reward and naming the genre look equal, at +30 and
++33 points. At five sentences the first is worth about twice the second. Nothing
+here establishes that five sentences is fine enough, and a per-sentence sweep
+could move the ratio again. What has survived both resolutions is that both
+spans carry real weight and that the trace sits at the prompt's own rate until
+the first of them.
 
 What still holds is the shape of the trace's own contribution. The model has
 computed nothing about the reward through sentence [10] and answers odd about

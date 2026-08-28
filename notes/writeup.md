@@ -17,10 +17,10 @@ model's reasoning the answer becomes determined.
 models at n=40 per arm, four answer odd under the conflicting grader: Kimi K3 at
 25.0%, qwen3.8-27b at 15.0%, MiniMax M3 and qwen3.5-27b at 2.5% each. Five
 answer odd zero times. The matched control, where the grader and the instruction
-agree, is 0 odd in the 357 parseable rollouts of 360. The grader is named in the
-chain of thought in most conflict rollouts of every model we counted, from 27 of
-40 for DeepSeek V4-Flash to 40 of 40 for qwen3.8-27b, so the zeros are mostly
-models that saw the incentive.
+agree, is 0 odd in the 357 parseable rollouts of 360. All nine mention the
+grader or the reward in their conflict-arm reasoning in at least 29 of 40
+rollouts, six of them in 40 of 40, so the zeros are models that saw the
+incentive and complied.
 
 **Every odd answer is argued, and the argument is about authority.** All 74 odd
 answers in a 2,921-trace corpus compute the parity correctly, name the
@@ -69,7 +69,9 @@ Reaching it takes the model through the reward arithmetic, which carries most of
 the distance without settling the question, and then through a judgement about
 what kind of situation it is in. What moves the rate at the prompt level is
 neither of those: naming the reward or the test leaves it where it is, and
-settling who is asking removes it. Calling the behaviour reward hacking
+settling who is asking removes it. What carries a trace toward the odd answer
+and what a prompt edit can change are different things, which is why an
+intervention aimed at the reward misses. Calling the behaviour reward hacking
 describes what the model did accurately enough, and it predicts the wrong
 interventions.
 
@@ -108,9 +110,10 @@ sit inside it at one gamer each. `figures/gaming-rate.png` draws this.
 Reasoning is longer under conflict for every model that reasons, by a factor of
 1.2 to 16.4. The conflict is doing work even where the answer stays even.
 
-The grader is named in the chain of thought in most conflict rollouts, so a
-zero mostly records a model that saw the incentive and complied. The rate also
-moves with
+Every model mentions the grader or the reward in most of its conflict-arm
+reasoning, from 29 of 40 for DeepSeek V4-Flash to 40 of 40 for six of the nine,
+so a zero records a model that saw the incentive and complied. That is a keyword
+count over the reasoning text and exploratory. The rate also moves with
 sampling: qwen3.8-27b at the vendor's own thinking-mode `top_p=0.95, top_k=20`
 gives 17 of 40 odd (42.5%, [28.5%, 57.8%]) on the same pin, prompts and seeds,
 with non-overlapping intervals against its 15.0% at `top_p=1.0`. A gaming rate
@@ -360,10 +363,14 @@ these prompt injection / grader reward tasks…" and "some benchmark where
 metadata reveals scoring", sit inside the next band, which adds 21 points to
 79%. The last band, [42] to [45], adds 19 more and saturates.
 
-A coarser grid split that first move across two brackets and made engaging with
-the reward and naming the genre look equal, at +30 and +33 points. At five-
-sentence resolution they are not: engaging with the conflict is worth about
-twice what naming the genre is. Both spans matter, and the first matters more.
+This attribution is unstable under grid resolution, and that is worth stating
+next to it rather than only in the limits. At ten-sentence resolution the same
+data made engaging with the reward and naming the genre look equal, at +30 and
++33 points. At five sentences the first is worth about twice the second. Nothing
+here establishes that five sentences is fine enough, and a per-sentence sweep
+could move the ratio again. What has survived both resolutions is that both
+spans carry real weight and that the trace sits at the prompt's own rate until
+the first of them.
 
 What still holds is the shape of the trace's own contribution. The model has
 computed nothing about the reward through sentence [10] and answers odd about
@@ -451,6 +458,9 @@ stated conclusion.
 | 68 | 3,554 | 30/30 = 100% | 8/30 = 27% | 8.3e-10 |
 | 137 | 6,873 | 30/30 = 100% | 18/30 = 60% | 0.00012 |
 | 205 | 9,962 | 30/30 = 100% | 30/30 = 100% | 1 |
+
+The one interior cell without a significant gap is sentence 11, where the plain
+prompt is itself at 20%, so there is little effect there to detect.
 
 We found the third outcome. Neither clean story survives, and each fails for a
 reason the other explains.
