@@ -7,36 +7,36 @@
 #   pytest   — the checks' own tests, including a false-positive suite. A checker
 #              that cries wolf gets bypassed, so quiet-on-clean-input is tested
 #              as carefully as fires-on-bad-input.
-#   validate_research.py — the research-integrity gate. Deliberately standalone
-#              and dependency-free: a project that never installs lanorme must
-#              still have every integrity guarantee. Skipped in the harness repo
-#              itself, which is not a research project and has no TREE.md.
+#   research gate — validate_research.py, run through research_graph.py verify
+#              where that CLI exists (same validator, plus evidence drift
+#              against recorded evidence hashes and orphaned notes/). Deliberately
+#              standalone and dependency-free: a project that never installs
+#              lanorme must still have every integrity guarantee. Skipped in
+#              the harness repo itself, which is not a research project and
+#              has no TREE.md.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-# Formatting and import order are not up for debate: ruff format + isort (rule I).
-#
-# These are two statements, not `A && B`, on purpose. `set -e` does NOT abort on
-# a failing command that sits to the LEFT of `&&` — only the last command in the
-# list counts. So the old one-liner swallowed every formatting failure AND
-# skipped the import-order check entirely, while check.sh went on to exit 0.
-# That is how 27 unformatted files went unnoticed. Verified: `set -euo pipefail;
-# false && echo B; echo C` prints C and exits 0.
-uvx ruff format --check .
-uvx ruff check .
+# Formatting and lint, one statement each: joined with `&&`, a format
+# failure would abort nothing (under `set -e` only the command after the
+# final `&&` counts) and would skip the lint entirely (issue #4). The
+# version is pinned to match ruff.toml's required-version, and rule
+# selection lives in ruff.toml, where a project can extend it.
+uvx ruff@0.15.8 format --check .
+uvx ruff@0.15.8 check .
 
 PYTHONPATH=. uvx lanorme check "${1:-.}"
 
 if [[ -d tests ]]; then
-    # pytest and the project's own deps come from pyproject.toml (dev group and
-    # [project.dependencies]), and uv installs the package itself, so the tests
-    # import `odd_number.*` normally. lanorme stays a --with because only the
-    # harness's own plugin tests need it.
-    uv run --with lanorme pytest tests -q
+    uv run --python 3.13 --with pytest --with lanorme pytest tests -q
 fi
 
 if [[ -f TREE.md ]]; then
-    uv run scripts/validate_research.py
+    if [[ -f scripts/research_graph.py ]]; then
+        uv run scripts/research_graph.py verify
+    else
+        uv run scripts/validate_research.py
+    fi
 else
     echo "No TREE.md — skipping research-integrity gate (not a research project)."
 fi

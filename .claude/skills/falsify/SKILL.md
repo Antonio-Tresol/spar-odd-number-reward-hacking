@@ -46,8 +46,23 @@ For each claim, state:
 4. If weakened: the qualified version
 5. If failed: the corrected finding
 
-### Step 6: Update
+### Step 6: Update and pin
 Update the source document with qualified claims and a falsification scorecard.
+Pin the evidence in the same pass: run
+`uv run scripts/research_graph.py pin <claim-id> [<claim-id>...]` and embed the
+JSON it prints under a top-level `"provenance"` key in the scorecard file. The
+pin records the git commit, the date, and a sha256 digest per evidence file, so
+a later `verify` reports drift — an evidence file changing after the claim
+graduated — instead of the scorecard silently describing bytes that no longer
+exist. Then graduate each claim:
+`uv run scripts/research_graph.py set-status <claim-id> survived|weakened|failed
+--evidence <scorecard-path>` (the validator refuses graduation without a
+scorecard evidence file, and the CLI restores everything untouched if any part
+of the write would be invalid). When the falsification was a reading rather
+than a computation — traces read, literature checked, labels discriminated —
+also record a `"verification"` block in the scorecard (reader runs with dates,
+verdicts, and verbatim quote anchors; the validate-claims skill has the
+schema), so `verify` can re-check the reading instead of taking its word.
 
 ## Worked examples of falsification catches
 

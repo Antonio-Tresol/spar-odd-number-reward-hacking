@@ -80,6 +80,38 @@
     {
       "query": "rename the variables in this function so it reads better",
       "should_trigger": false
+    },
+    {
+      "query": "responses from the chat sdk sometimes come back empty in results/rollouts.jsonl and the grader scores them as refusals — figure out what scripts/collect.py is doing wrong",
+      "should_trigger": true
+    },
+    {
+      "query": "half the rollouts in results/rollouts.jsonl end mid-sentence and the accuracy moved, check the collection settings",
+      "should_trigger": true
+    },
+    {
+      "query": "scripts/collect.py reads the api key with os.environ.get in three places, set up configuration properly before the big run",
+      "should_trigger": true
+    },
+    {
+      "query": "pin down the sampling parameters for the sweep so runs are comparable across providers",
+      "should_trigger": true
+    },
+    {
+      "query": "two runs with the same seed gave different scores through the router api, make the collection reproducible enough to compare",
+      "should_trigger": true
+    },
+    {
+      "query": "should the scorer look at finish_reason before extracting answers? writing it now",
+      "should_trigger": true
+    },
+    {
+      "query": "rotate the ssh key I use for the university cluster login",
+      "should_trigger": false
+    },
+    {
+      "query": "add a pydantic model for the signup form payload in our webapp",
+      "should_trigger": false
     }
   ],
   "workspace_files": {
@@ -92,6 +124,8 @@
     "scripts/finetune.py": "from transformers import Trainer, TrainingArguments\nfrom model import load_base, load_dataset\n\nmodel = load_base(\"gpt2-medium\")\nds = load_dataset(\"data/items.csv\")\nargs = TrainingArguments(output_dir=\"ckpts\", num_train_epochs=3,\n                         per_device_train_batch_size=8)\ntrainer = Trainer(model=model, args=args, train_dataset=ds)\ntrainer.train()\n",
     "snippet.py": "def pick_thirds(xs):\n    a = []\n    for i in range(len(xs)):\n        b = xs[i * 3]\n        a.append(b)\n    return a\n\n\nvals = [10, 20, 30, 40, 50]\nprint(pick_thirds(vals))\n",
     "results/scores.jsonl": "{\"model\": \"haiku\", \"task\": \"arithmetic\", \"correct\": 41, \"total\": 50}\n{\"model\": \"haiku\", \"task\": \"translation\", \"correct\": 36, \"total\": 50}\n{\"model\": \"sonnet\", \"task\": \"arithmetic\", \"correct\": 47, \"total\": 50}\n{\"model\": \"sonnet\", \"task\": \"translation\", \"correct\": 44, \"total\": 50}\n",
+    "results/rollouts.jsonl": "{\"id\": \"r-001\", \"response\": \"The answer is 391.\", \"finish_reason\": \"stop\"}\n{\"id\": \"r-002\", \"response\": \"\", \"finish_reason\": \"stop\"}\n{\"id\": \"r-003\", \"response\": \"Working through it: 17 times 23 is 340 plus 51, so the\", \"finish_reason\": \"length\"}\n{\"id\": \"r-004\", \"response\": \"\", \"finish_reason\": \"stop\"}\n",
+    "scripts/collect.py": "import json\nimport os\n\nfrom chat_sdk import complete\n\nAPI_KEY = os.environ.get(\"ROUTER_API_KEY\")\n\nprompts = [json.loads(line) for line in open(\"data/probe_prompts.jsonl\")]\nrows = []\nfor p in prompts:\n    key = os.environ.get(\"ROUTER_API_KEY\")\n    message = complete(p[\"prompt\"], api_key=key)\n    rows.append({\n        \"id\": p[\"id\"],\n        \"response\": getattr(message, \"content\", None) or \"\",\n        \"finish_reason\": getattr(message, \"finish_reason\", None) or \"stop\",\n    })\n\nwith open(\"results/rollouts.jsonl\", \"w\") as f:\n    for row in rows:\n        f.write(json.dumps(row) + \"\\n\")\n",
     "utils.py": "import os\nimport sys\nimport json\nimport math\nimport random\nfrom pathlib import Path\n\n\ndef load_jsonl(path):\n    return [json.loads(line) for line in Path(path).read_text().splitlines() if line]\n\n\ndef set_seed(seed=0):\n    random.seed(seed)\n",
     "markdown_parser.py": "import re\n\nHEADING = re.compile(r\"^(#{1,6})\\s+(.*)$\")\n\n\ndef parse_headings(text):\n    out = []\n    for line in text.splitlines():\n        m = HEADING.match(line)\n        if m:\n            out.append({\"level\": len(m.group(1)), \"title\": m.group(2).strip()})\n    return out\n",
     "README.md": "# probe-experiments\n\nSmall research scratch repo: probe prompt runs, scoring, and sweeps.\n\nLayout: `scripts/` pipelines, `data/` inputs, `results/` outputs.\n",

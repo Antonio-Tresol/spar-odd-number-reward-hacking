@@ -41,6 +41,18 @@ if has '^results/' && ! has '^(RESEARCH_LOG|TREE)\.md$'; then
     A null or inconclusive result still counts as a completed experiment."
 fi
 
+# Only the harness repo carries a CHANGELOG.md; in an installed project,
+# scripts/ is the project's own experiment code and this must stay silent.
+# Lab equipment (eval runners, graders) is not shipped surface either.
+if [[ -f CHANGELOG.md ]]; then
+    surface="$(grep -E '^(scripts/|\.claude/|templates/|hooks/|install\.py)' <<<"$staged" \
+        | grep -vE '^scripts/(run_|analyse_|skill_eval_|plain_language_|redteam_|falsify_)' || true)"
+    if [[ -n "$surface" ]] && ! has '^CHANGELOG\.md$'; then
+        note "The shipped surface changed ($(head -3 <<<"$surface" | tr '\n' ' ')) but CHANGELOG.md did not.
+    If an installed project would notice, narrate it under [Unreleased]."
+    fi
+fi
+
 if has '^\.claude/skills/' && ! has '^(AGENTS\.md|README\.md)$'; then
     note "A skill changed ($(list '^\.claude/skills/')).
     Do AGENTS.md and the README still describe it correctly?"
@@ -60,6 +72,37 @@ if [[ -n "$committed_tree" ]]; then
     Re-run falsify or validate-claims for any claim resting on it."
         fi
     done < <(git diff --cached --name-only --diff-filter=M | grep -E '^results/' || true)
+fi
+
+# Whether prose reads clearly to a research partner outside this session is a
+# judgement, so no check here
+# makes it. What IS mechanical is whether an independent reader has read THIS
+# version: reviews record the hash of the text they were written about, so a
+# review that no longer matches is visibly stale rather than silently wrong.
+# A reminder, never a gate — a semantic verdict that can block gets bypassed
+# once and then forever.
+# Only for projects that have adopted the reader channel: a project with no
+# reviews/ directory never opted in, and nagging it on every commit forever is
+# how a reminder block teaches people to skim. Discovery belongs in the skill
+# and in `research_graph.py review`, not here.
+if [[ -d reviews ]]; then
+for doc in TREE.md RESEARCH_LOG.md; do
+    grep -qx "$doc" <<<"$staged" || continue
+    slug="$(tr '[:upper:]' '[:lower:]' <<<"$doc" | sed 's/[^a-z0-9]\+/-/g; s/^-//; s/-$//')"
+    review="reviews/${slug}.json"
+    if [[ ! -f "$review" ]]; then
+        note "$doc changed and no independent reader has read it, though this
+    project reviews its other documents.
+    uv run scripts/research_graph.py review --run $doc"
+    elif command -v python3 >/dev/null 2>&1; then
+        reviewed="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('sha256',''))" "$review" 2>/dev/null || true)"
+        actual="$(python3 -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$doc" 2>/dev/null || true)"
+        if [[ -n "$reviewed" && -n "$actual" && "$reviewed" != "$actual" ]]; then
+            note "$doc has changed since a reader last read it, so $review is stale.
+    When the text settles: uv run scripts/research_graph.py review --run $doc"
+        fi
+    fi
+done
 fi
 
 # A document that carries an `updated:` date should have it bumped in the same

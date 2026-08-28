@@ -33,8 +33,8 @@ def scan_tree(*, name: str, src_root: str, pattern: str, scan: FileScan) -> Chec
     for path in sorted(root.rglob(pattern)):
         if any(part in SKIP_PARTS for part in path.parts):
             continue
-        # `/`-separated on every platform: config globs use `/`, and a Windows
-        # `\` path silently matches none of them.
+        # as_posix, not str: on Windows str() yields backslashes, which match
+        # no /-separated config glob, and the check silently scans nothing.
         found, warned = scan(path, path.relative_to(root).as_posix())
         violations.extend(found)
         warnings.extend(warned)

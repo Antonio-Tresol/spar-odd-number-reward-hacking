@@ -26,7 +26,13 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Under bare pytest, skip with the remedy instead of erroring at collection
+# as if the code were broken (issue #8). pytest.ini's pythonpath makes
+# lanorme_plugins importable; lanorme itself must come from the environment.
+pytest.importorskip(
+    "lanorme",
+    reason="these tests need lanorme: run ./check.sh, or add --with lanorme to pytest",
+)
 
 from lanorme_plugins._common import is_glob_match  # noqa: E402
 from lanorme_plugins.provenance import ProvenanceCheck  # noqa: E402
@@ -215,7 +221,7 @@ def test_tensors_quiet_on_pandas(tmp_path: Path) -> None:
         tmp_path,
         "m.py",
         "import pandas as pd\n\n"
-        "def summarise_by_variant(frame: pd.DataFrame) -> pd.DataFrame:\n"
+        "def summarise(frame: pd.DataFrame) -> pd.DataFrame:\n"
         "    return frame.transpose().squeeze()\n",
     )
     assert codes(TensorsCheck().run(src_root=str(tmp_path))) == []
@@ -397,3 +403,27 @@ def test_skill_checks_quiet_on_a_well_formed_skill(tmp_path: Path) -> None:
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+def test_glob_match_targets_must_be_posix_separated() -> None:
+    """Issue #2: on Windows, str(relative_to()) yields backslashes, which match
+    no /-separated config glob, so a check silently scans zero files and
+    passes. as_posix() is the contract for every glob match target; this
+    encodes both halves of the failure without needing Windows."""
+    from pathlib import PureWindowsPath
+
+    windows_form = str(PureWindowsPath("reports") / "sub" / "f.md")
+    assert not is_glob_match(windows_form, ["reports/**/*.md"])
+    assert is_glob_match(PureWindowsPath(windows_form).as_posix(), ["reports/**/*.md"])
+
+
+def test_no_shipped_check_builds_a_match_target_with_str() -> None:
+    """A tripwire against the same silent failure returning: match targets in
+    the shipped plugins come from as_posix(), never str()."""
+    plugins = Path(__file__).resolve().parent.parent / "lanorme_plugins"
+    offenders = [
+        source.name
+        for source in plugins.glob("*.py")
+        if "str(path.relative_to" in source.read_text(encoding="utf-8")
+    ]
+    assert offenders == []

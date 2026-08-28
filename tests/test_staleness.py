@@ -13,7 +13,6 @@ Run:  uv run tests/test_staleness.py
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from datetime import date, timedelta
@@ -21,16 +20,19 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Under bare pytest, skip with the remedy instead of erroring at collection
+# as if the code were broken (issue #8). pytest.ini's pythonpath makes
+# lanorme_plugins importable; lanorme itself must come from the environment.
+pytest.importorskip(
+    "lanorme",
+    reason="these tests need lanorme: run ./check.sh, or add --with lanorme to pytest",
+)
 
 from lanorme_plugins.staleness import StalenessCheck  # noqa: E402
 
 
 def run_git(root: Path, *args: str) -> None:
-    # Scrub GIT_*: when this suite runs inside a git hook, the exported GIT_DIR
-    # would point every call at the outer repository instead of the tmp repo.
-    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
-    subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, env=env)
+    subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
 
 
 def new_repo(root: Path) -> None:

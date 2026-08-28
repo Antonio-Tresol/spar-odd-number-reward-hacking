@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/session_verify_hook.py",
+            "statusMessage": "Checking the research record"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .codex/hooks/validate_record_hook.py",
+            "statusMessage": "Validating the research record"
+          }
+        ]
+      }
+    ]
+  }
+}

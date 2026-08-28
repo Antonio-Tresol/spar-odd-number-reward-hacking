@@ -73,38 +73,6 @@ not occupying the main line.
 - Label axes, and say which direction is better.
 - Put the actual value on the chart (e.g. `51.4%`), not just the bar height.
 
-## Notebooks as the report layer
-
-When notebooks are a project's report layer (results/ holds evidence, the
-tree holds the record, notebooks narrate), they follow the same contract as
-any deliverable, plus:
-
-- **Skimmable structure**: titles and subtitles carry the story — a reader
-  should get the arc from headers alone. Each notebook opens with what it is
-  for, key concepts (one line each), and an index.
-- **One-line cell comments**: every code cell starts with `# this cell does X`.
-- **Interactive plots** (plotly or equivalent) over static ones where feasible;
-  no printed text under a figure that could live inside the figure.
-- **Every figure is self-sufficient**: axes labeled, model/system named on the
-  plot (no exceptions), values on the chart where they matter, and a
-  collapsible "How to read this figure" block underneath.
-- **Replication work states its source mapping on the figure itself**: a
-  subtitle line "maps to: <source> Figure N" / "our extension (no source
-  figure)". Maintain a plot-parity inventory covering EVERY numbered figure
-  and table of the source — replicated, substituted (difference stated),
-  queued (cost stated), or out of scope (blocker named). Silent gaps read as
-  coverage.
-- **No undefined coinages**: terms the project invents (absent from the
-  sources and not standard in the field) are defined at first use in every
-  document or replaced with a plain phrase. Canonical field vocabulary needs
-  no apology — the test is "is it in the papers or standard usage?", not
-  "is it technical?".
-- **Protagonist system first**: when several models/systems were measured,
-  every figure shows the one the project is about, with others as labeled
-  comparisons wherever both exist.
-- **Reduce em dashes; prefer plain sentences.** Respect the reader's
-  attention throughout.
-
 ## Before it leaves the project
 
 Every number in a deck, report, or notebook must trace to a results file — run the

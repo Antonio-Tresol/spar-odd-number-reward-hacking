@@ -18,7 +18,6 @@ Run:  uv run tests/test_hooks.py
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from datetime import date, timedelta
@@ -29,20 +28,8 @@ import pytest
 HOOK = Path(__file__).resolve().parent.parent / "hooks" / "pre-commit"
 
 
-def clean_env() -> dict[str, str]:
-    """The inherited environment minus git's own GIT_* variables.
-
-    When this suite runs inside a git hook (check.sh via pre-commit, especially
-    from a worktree), git exports GIT_DIR / GIT_INDEX_FILE pointing at the OUTER
-    repository. Inherited by the throwaway repos here, they make every `git add`
-    fail with "this operation must be run in a work tree" — or worse, act on the
-    real repository.
-    """
-    return {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
-
-
 def run_git(root: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, env=clean_env())
+    subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
 
 
 @pytest.fixture()
@@ -72,7 +59,6 @@ def hook(root: Path) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         text=True,
         check=False,
-        env=clean_env(),
     )
 
 
@@ -220,3 +206,22 @@ def test_passes_when_checks_pass(repo: Path) -> None:
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+def test_surface_change_without_changelog_reminds_only_the_harness_repo(repo: Path) -> None:
+    """The changelog reminder needs a CHANGELOG.md to exist, fires on shipped
+    surface changing without it staged, and stays quiet for lab equipment and
+    for the commit that updates the changelog alongside the change."""
+    (repo / "CHANGELOG.md").write_text("# Changelog\n\n## [Unreleased]\n")
+    run_git(repo, "add", "-A")
+    run_git(repo, "commit", "-q", "-m", "adopt changelog")
+    stage(repo, "scripts/research_graph.py", "x = 1\n")
+    out = hook(repo).stdout
+    assert "CHANGELOG.md did not" in out, out
+    stage(repo, "CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n- change\n")
+    out = hook(repo).stdout
+    assert "CHANGELOG.md did not" not in out, out
+    run_git(repo, "commit", "-q", "-m", "surface with changelog")
+    stage(repo, "scripts/run_probe.py", "x = 2\n")
+    out = hook(repo).stdout
+    assert "CHANGELOG.md did not" not in out, out

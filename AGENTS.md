@@ -26,10 +26,12 @@ only to record what is true.
 
 Two kinds of Python live here, and they follow different rules.
 
-- **The harness's own tooling** (`scripts/validate_research.py`,
-  `scripts/run_skill_evals.py`, and the skills' `references/*.py`) stays
+- **The harness's own tooling** (`scripts/validate_research.py`, the
+  `scripts/research_graph*.py` suite, and the skills' `references/*.py`) stays
   self-contained PEP 723 uv scripts — inline dependencies, no venv, runnable
-  from any checkout. Leave them that way.
+  from any checkout. Leave them that way. The eval runners and graders that used
+  to sit beside them are lab equipment for measuring agent behaviour *on* the
+  harness, and v0.3.0 stopped shipping them into projects.
 - **This project's research code** is a package: `src/odd_number/`, declared in
   `pyproject.toml`. `uv run` installs it, so tests and modules import
   `odd_number.*` directly — no `sys.path` manipulation anywhere. One CLI is the
@@ -255,3 +257,30 @@ Phases iterate; the gates do not.
     after you mark the project trusted, and note it *outranks* your personal
     `~/.codex/config.toml`. Codex subagents are on by default; shareable custom
     agent roles can be added under `.codex/agents/` if the project needs them.
+
+## Feedback to the harness
+
+The rules, skills, and checks in this repository come from the
+[research-engineering harness](https://github.com/Antonio-Tresol/research-engineering-harness),
+and it improves through reports from the projects using it — its
+releases v0.2.1 and v0.3.0 trace, entry by entry, to exactly such
+reports. Your experience is wanted, agent or human alike:
+
+- Something is broken — a check that lies, a rule that cannot be
+  followed, a script that fails: file an issue on that repository.
+- Friction that is not a defect — a rule that fought you, a workflow
+  that cost turns, something missing that you needed: comment on the
+  standing feedback thread,
+  <https://github.com/Antonio-Tresol/research-engineering-harness/issues/13>.
+- A human corrected your work on ground these rules already claim to
+  cover — code not clean or readable despite the norms above,
+  documentation padded with unnecessary detail: comment that on the
+  same thread, with the correction quoted. A norm agents read and
+  still miss is stated badly — a harness defect of its own kind.
+
+Say what you were doing in one line, what happened, and the version in
+`.harness-version`. The tracker is public: no secrets, nothing
+project-confidential — describe the behaviour, never this project's
+content. If your environment has no GitHub access, or your user prefers
+you not to post, append the same report to `notes/harness-feedback.md`
+and tell your user it is there to pass on.

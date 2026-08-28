@@ -32,7 +32,6 @@ Run:
 
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 from dataclasses import dataclass, field
@@ -54,14 +53,7 @@ STALE_002: Final[str] = "STALE-002: a document's `updated:` date matches its las
 
 
 def git(root: Path, *args: str) -> str | None:
-    """Run git, returning stripped stdout, or None when git cannot answer.
-
-    GIT_* variables are scrubbed from the environment: inside a git hook
-    (check.sh via pre-commit, especially from a worktree) git exports GIT_DIR
-    and friends pointing at the repository being committed, which would silently
-    redirect this query away from *root*.
-    """
-    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    """Run git, returning stripped stdout, or None when git cannot answer."""
     try:
         done = subprocess.run(
             ["git", *args],
@@ -70,7 +62,6 @@ def git(root: Path, *args: str) -> str | None:
             text=True,
             check=False,
             timeout=10,
-            env=env,
         )
     except (OSError, subprocess.SubprocessError):
         return None

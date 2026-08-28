@@ -3,9 +3,11 @@ name: experiment-engineering
 description: >-
   The engineering contract for research code: two modes (explore fast, promote
   when it matters) and the non-negotiable observability requirements — structured
-  logging, resumable checkpoints, fail-fast ordering, and error handling. Use
-  whenever writing or reviewing an experiment script, pipeline, or any code that
-  spends GPU time or API budget.
+  logging, resumable checkpoints, fail-fast ordering, error handling, and the
+  pinned identity of every API call. Also covers the vendor-SDK boundary, typed
+  configuration and credentials, truncation as a measurement hazard, and module
+  structure for promoted code. Use whenever writing or reviewing an experiment
+  script, pipeline, or any code that spends GPU time or API budget.
 ---
 
 # Experiment engineering
@@ -58,6 +60,22 @@ un-observable work has to be re-run, and re-running is slower than logging was.
 6. **Seeds and shuffling.** Fix and record seeds. Always shuffle datasets yourself.
    It is free, and do not rely on someone else having done it. Sample subsets
    randomly rather than taking the first *n*.
+7. **Pin and record the full identity of every API call.** A recorded seed is
+   nowhere near sufficient, because three things drift under an identical script.
+   Model aliases get repointed at new weights: send the dated snapshot, not the
+   alias. One model id is served by many providers at different quantizations:
+   pin the provider, make an unavailable pin an error rather than a silent
+   reroute, and refuse providers that would ignore parameters you rely on
+   (on OpenRouter: `allow_fallbacks: false`, `require_parameters: true`).
+   And every sampling parameter you do not send falls back to a per-provider
+   default: send them all — temperature, top_p, top_k, max_tokens — and write
+   them into the results file, since an unrecorded parameter cannot be compared
+   across runs. Where the API can report which provider and resolved model
+   actually served the call, enable that and record it, so the pin is auditable
+   from the results file alone. Know what a seed buys you: on a continuously
+   batched endpoint at nonzero temperature it is best-effort, so the
+   reproducibility that carries evidence is distributional — n rollouts and an
+   interval — not per-rollout replay.
 
 ## Calling an API at volume
 
@@ -76,58 +94,46 @@ Runnable reference: `references/api_runner.py` (dependency-free; adapt `call_one
 - **Cap total attempts** and record permanent failures as rows with an `error`
   field. A run that quietly dropped 3% of items is worse than one that failed.
 
-## Parallel inference with vLLM (generation at volume)
+## The vendor-SDK boundary
 
-Runnable reference: `references/vllm_parallel_generation.py` (Blackwell
-survival settings in its docstring).
+Mishandled SDK responses produce plausible-but-wrong results files, the exact
+failure mode this skill exists to prevent, and they do it without raising.
 
-This is the DECODE workload — the one vLLM is famous for. Measured: 16x over
-a naive HF `model.generate` loop (2,424 stories in ~9 min vs ~2.5 h, 31B
-bf16, single GPU). Pass all prompts in one `llm.generate` call and let the
-scheduler batch; hand-chunking hurts.
+- **Vendor types stop at one module.** Convert responses into project-owned
+  typed structures (dataclasses or pydantic models) at that boundary and
+  nowhere else, so a vendor change breaks one file instead of every call site,
+  and so real types propagate instead of `dict[str, Any]`.
+- **At the boundary, read fields with direct typed attribute access.**
+  `message.content`, not `getattr(message, "content", None) or ""`. The
+  getattr-with-default reads as defensive and is destructive: a renamed field
+  becomes an empty string, the run records hundreds of empty responses a
+  grader cannot tell from refusals, and then it scores them. A renamed field
+  must raise on the first call, before budget is spent; a crash is a far
+  better outcome than silent corruption.
+- `getattr(obj, "x", default)` is for genuinely dynamic lookup, which a typed
+  SDK response never is. Same for `hasattr` probing.
+- **`isinstance` rejects an unexpected shape; it never branches quietly
+  between two behaviours.** Raise on the shape you did not expect.
+- **Keep absent distinct from malformed.** A genuinely optional field gets an
+  explicit `is None` branch; a malformed one raises. They need different
+  responses, and collapsing them hides whichever one you collapsed.
 
-**Independent of activation extraction.** Generation needs none of the
-extraction machinery (no hooks, no eager mode for long jobs, no speculative
-config) and vice versa — the next section's prefill-only extraction never
-decodes. Configure each for its own job; they compose only if you
-deliberately set up both.
+## Configuration and credentials
 
-Sources: [vLLM docs](https://docs.vllm.ai/) (quickstart, engine args,
-offline inference).
-
-## Extracting activations at scale (which engine)
-
-Runnable reference: `references/vllm_activation_extraction.py` (measured
-numbers and the verified vLLM config schema in its docstring).
-
-Sources: [vLLM hidden-state extraction docs](https://docs.vllm.ai/en/latest/features/speculative_decoding/extract_hidden_states/),
-[vLLM blog: extracting hidden states, 2026-03-30](https://vllm.ai/blog/2026-03-30-extract-hidden-states)
-(mechanism, `>= v0.18.0`, PR #33736), [RFC: observation plugin for
-activations](https://github.com/vllm-project/vllm/issues/36998) (future
-first-class interp hooks), [community: vllm-hidden-states](https://github.com/agencyenterprise/vllm-hidden-states).
-
-The engine choice depends on capture width and whether you persist, not on
-generation-throughput folklore. Measured on a 31B bf16 model, 256 texts,
-512-token cap (2026-07): a plain HF transformers loop with in-batch pooling
-does 1,014 tok/s at 20 captured layers; vLLM-with-forward-hooks does ~3,400
-tok/s at 1 layer but only 528 at 20 (blocking per-layer `.cpu()` copies —
-the advantage inverts with width); vLLM's official `extract_hidden_states`
-API does 977 tok/s at 20 layers *while writing the full per-token
-activations to disk* (~25 GB for that batch), which the other routes don't
-pay for.
-
-- **Pooled means at any scale** → plain HF loop. Simplest; the production
-  path.
-- **A few layers, nothing persisted** → vLLM hooks under `enforce_eager`
-  (hooks vs CUDA graphs) with the in-process engine; pool inside the hook.
-- **Corpus-scale per-token dumps** → the official API (vLLM ≥ 0.18):
-  prefill-only, keeps CUDA graphs, file-per-request output is naturally
-  resumable. Size the dump volume first, and verify numerics against a
-  reference path before first scientific use (hooks-vs-HF measured cosine
-  ≥ 0.99999; the official route's outputs deserve the same check).
-- **vLLM speedups are workload-specific**: the famous decode-scheduling wins
-  (16x on story generation) do not transfer to prefill-only activation
-  work. Benchmark on your workload shape before committing.
+- **Read configuration once, at startup, into one typed object built with
+  pydantic-settings, and pass it down.** It reads `.env` and the real
+  environment with the right precedence (environment wins, so a cloud runner
+  needs no file) and validates on construction, which is fail-fast applied to
+  credentials. Never `os.environ.get(...)` at the point of use, where the
+  "is it missing?" check lives in a different module from the parser. Never a
+  hand-rolled `.env` parser: a real one silently mangled the two lines people
+  most often paste, `export KEY=value` and `KEY=value  # comment`.
+- **Keys are `SecretStr`**, so a traceback or a stray `print(settings)` cannot
+  leak them; reading one requires an explicit `get_secret_value()`.
+- The scaffold ships a committed `.env.example` carrying names, never values.
+  Keep it current: its names are the documentation a fresh clone reads.
+- **A key that reaches git history is burned.** Rotate it; deleting the commit
+  is not enough.
 
 ## Using a GPU without OOMing at hour three
 
@@ -167,10 +173,9 @@ wrong number, which you then debug for an afternoon.
 from jaxtyping import Bool, Float
 from torch import Tensor
 
-
 def project(
     activations: Float[Tensor, "batch seq d_model"],
-    direction: Float[Tensor, "d_model"],  # a vector is still annotated
+    direction: Float[Tensor, "d_model"],          # a vector is still annotated
 ) -> Float[Tensor, "batch seq"]:
     return einsum(activations, direction, "b s d, d -> b s")
 ```
@@ -190,6 +195,35 @@ def project(
 - Enable jaxtyping's runtime checking (a typechecker decorator) during
   development; the annotations then verify shapes rather than merely asserting them.
 
+## Structure, names, and dependencies (promoted code)
+
+Explore-mode code can be a throwaway script. Promoted code is a module, and a
+pile of sibling scripts that import each other is not a module system.
+
+- **New capability goes into the project's package** (`src/<project>/`),
+  importable, with a thin CLI entry point. Reaching your own code by editing
+  `sys.path` is the tell that packaging is missing; fix the structure, not the
+  path. (The harness's own `scripts/` are deliberately self-contained,
+  zero-install tools — that is their reason, and it is not a license for
+  experiment code to accumulate there.)
+- **Names say what the thing does**: modules are nouns for the thing they hold
+  (`rollouts`, `grading`), functions are verbs for what they do
+  (`request_completion`, `score_rollout`). A name that needs the commit
+  message to decode fails review; so does a module named `utils`.
+- **Types where they make the code readable**, not annotation for its own
+  sake: the signatures of promoted interfaces, the settings object, tensor
+  shapes, the boundary structures vendor responses convert into.
+  `dict[str, Any]` flowing through a pipeline is how boundary bugs spread.
+- **Prefer the canonical dependency over hand-rolling**: the official SDK for
+  the API you call, tenacity for retries, pydantic for schemas,
+  pydantic-settings for configuration. "Few dependencies" cuts both ways —
+  hand-rolling what a maintained library already does trades tested behaviour
+  for fresh bug surface (the `.env` parser above).
+- **No magic numbers in experiment configuration.** Every constant that shapes
+  a result — sample size, temperature, token cap, threshold — has a name, a
+  home (config object or CLI argument with an explicit default), and a copy in
+  the results file.
+
 ## Before you run it
 
 Ask, in order: What is the motivation? Have I de-risked this (is there a cheaper
@@ -207,6 +241,21 @@ programmatically. A metric computed over data you never looked at is where silen
 bugs live — buggy code producing plausible-but-wrong gains is a documented failure
 mode of AI-assisted research (see the harness's `research/` surveys).
 
+**Truncation is the quiet version, and it survives a glance at the metric.** A
+`max_tokens` cap that lands mid-generation returns `finish_reason: "length"`,
+the row looks complete, and an answer-extraction rule happily reads a severed
+digit as the model's answer — a value that is an artefact of where the cap
+fell, not of anything the model decided. Two rules:
+
+- **Check `finish_reason` before parsing, not after.** Anything other than
+  `stop` is unparseable: it shrinks the reported denominator visibly instead of
+  quietly biasing the rate. Analysis that reads only the response text cannot
+  tell the difference.
+- **Size the cap by the asymmetry.** Tokens are billed as generated, so a cap
+  that is never reached costs nothing, while a cap that is reached costs a data
+  point you already paid for. Err high, within the provider's ceiling, rather
+  than picking a tidy round number.
+
 ## Conventions that keep runs findable
 
 - Dated experiment folders with numbered scripts showing execution order:
@@ -215,7 +264,6 @@ mode of AI-assisted research (see the harness's `research/` surveys).
   parallelizable without editing code.
 - Few dependencies, and none you don't understand.
 - Use the fast inference path when generating at volume; naive `model.generate`
-  loops are dramatically slower than dedicated inference libraries (see
-  "Parallel inference with vLLM" above).
+  loops are dramatically slower than dedicated inference libraries.
 
 $ARGUMENTS

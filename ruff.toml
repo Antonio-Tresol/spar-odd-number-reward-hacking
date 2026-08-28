@@ -1,0 +1,18 @@
+exclude = ["*.ipynb"]  # notebooks are explore-mode: exempt from polish by design
+line-length = 100
+target-version = "py311"
+
+# check.sh invokes ruff@<this version>; required-version refuses any other,
+# so the gate's verdict cannot drift with the formatter's style releases.
+required-version = "0.15.8"
+
+[lint]
+# I: import sorting. F: pyflakes — dead imports and names used without
+# being imported; its first run found both, on paths no test touched
+# (issue #5). Structural lint beyond that belongs to lanorme.
+select = ["F", "I"]
+
+[lint.per-file-ignores]
+# jaxtyping writes tensor shapes as strings, 'Float[Tensor, "batch d_model"]';
+# pyflakes reads those annotations as broken forward references.
+".claude/skills/experiment-engineering/references/*.py" = ["F722", "F821"]
