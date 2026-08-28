@@ -254,6 +254,14 @@ first 2,131 characters it answers odd 28 times in 29, and from 2,276 characters
 onward 240 times out of 240 across eight branch points.
 The whole shift happens across sentences [11] to [42], a fifth of the trace.
 
+The prefix narrows the answer as well as the parity. Counting distinct numbers
+returned at each branch point, the model gives 10 different answers from the
+prompt alone and 1 from 114 sentences on, falling monotonically in between: 10,
+11, 8, 7, 6, 4, 4, 3, 2, 1. The number it converges on is 1, which is what the
+source trace answered. Across the whole sweep 304 of 350 odd answers are 1, and
+the even answers concentrate on 42 and 2. So the resampling reproduces the
+trace's own output rather than its parity alone.
+
 The empty-prefix cells of all three traces swept are one condition, being one
 prompt, one pin, one sampling configuration and a distinct seed per row. They
 agree pairwise and pool to 16 of 89 odd, 18.0% [11.4%, 27.2%], against the chat
