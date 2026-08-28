@@ -4,6 +4,10 @@ version = "0.1.0"
 description = "Model Forensics take-home: why do models output an odd number when the in-context grader rewards odd?"
 requires-python = ">=3.13"
 dependencies = [
+    # Declared directly because `branches.py` calls the text-completions
+    # endpoint itself; the SDK wraps only /v1/chat/completions. It arrives
+    # transitively via `openrouter` too, but a transitive pin is not a promise.
+    "httpx>=0.28",
     "markdown>=3.7",
     "openrouter>=1.1.82",
     "pydantic>=2.12",
@@ -17,6 +21,24 @@ odd-number = "odd_number.cli:main"
 # uv installs the `dev` group automatically for `uv run` inside a project, so
 # `uv run pytest` needs no --with flags.
 dev = ["pytest>=8.0"]
+# `matplotlib` draws the figures and writes them straight to PNG, which is how a
+# figure gets looked at before anyone trusts it. `ipykernel` is what VS Code and
+# Jupyter attach to.
+notebooks = [
+    "ipykernel>=7.3.0",
+    "matplotlib>=3.11.1",
+    "nbclient>=0.11.0",
+    "nbformat>=5.11.1",
+]
+
+[tool.uv]
+# `notebooks` is a default group, not an opt-in one. Without this, a bare
+# `uv sync` prunes matplotlib and ipykernel out of .venv, and the next thing that
+# happens is the notebook kernel in an editor dies with `No module named matplotlib`
+# on a machine where nothing appears to have changed. `uv run --group notebooks`
+# still works and is still what the notebook's own instructions say; this only
+# stops the group being silently removed again.
+default-groups = ["dev", "notebooks"]
 
 [build-system]
 requires = ["hatchling"]

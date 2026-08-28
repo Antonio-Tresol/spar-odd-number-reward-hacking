@@ -4,6 +4,9 @@ __pycache__/
 .DS_Store
 CLAUDE.local.md
 results/*mock*
+# Console captures from backgrounded runs. The JSONL beside them is the
+# evidence; these are just what scrolled past while it was collected.
+results/**/*.log
 .env
 .env.*
 # ...but the example carries names only, never values, and must be committed

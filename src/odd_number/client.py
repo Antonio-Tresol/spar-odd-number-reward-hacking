@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Final
 
+import httpx
 from openrouter import OpenRouter, RetryConfig
 from openrouter.utils import BackoffStrategy
 
@@ -67,4 +68,28 @@ def build_client(settings: Settings | None = None) -> OpenRouter:
         api_key=resolved.api_key,
         retry_config=build_retry_config(),
         timeout_ms=REQUEST_TIMEOUT_MS,
+    )
+
+
+def build_http_client(settings: Settings | None = None) -> httpx.Client:
+    """A plain HTTP client for the text-completions endpoint.
+
+    The SDK wraps `/v1/chat/completions` only, and `branches.py` needs
+    `/v1/completions` to stop a request mid-thought. Credentials still come from
+    `settings.py`, and `METADATA_ENABLED` is sent as the header it is, so a
+    resample records who served it exactly as a rollout does.
+
+    Retries are the caller's here rather than the SDK's: `transport` retries only
+    connection failures, and an upstream 429 comes back as a 200-less response
+    that `branches.py` records as an error row and retries on the next run.
+    """
+    resolved = settings or load_settings()
+    return httpx.Client(
+        headers={
+            "Authorization": f"Bearer {resolved.api_key}",
+            "Content-Type": "application/json",
+            "X-OpenRouter-Metadata": METADATA_ENABLED,
+        },
+        timeout=httpx.Timeout(REQUEST_TIMEOUT_MS / 1000),
+        transport=httpx.HTTPTransport(retries=3),
     )

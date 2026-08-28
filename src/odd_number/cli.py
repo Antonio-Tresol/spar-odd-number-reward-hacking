@@ -34,8 +34,25 @@ import sys
 from contextlib import ExitStack
 from pathlib import Path
 
-from odd_number.answers import AnswerJudge, judge_cache_path, read_fixtures, validate_judge
-from odd_number.client import build_client
+from odd_number.answers import (
+    AnswerJudge,
+    judge_cache_path,
+    read_answer_literally,
+    read_fixtures,
+    validate_judge,
+)
+from odd_number.branches import (
+    Resampler,
+    ResampleRequest,
+    append_resample,
+    choose_branch_points,
+    find_branch_candidates,
+    find_source_rollout,
+    split_sentences,
+)
+from odd_number.branches import load_completed_keys as branch_completed_keys
+from odd_number.chat_templates import TemplateError, resolve_template
+from odd_number.client import build_client, build_http_client
 from odd_number.environment import (
     DESCRIPTIONS,
     PARAPHRASES,
@@ -44,7 +61,7 @@ from odd_number.environment import (
     build_prompt,
 )
 from odd_number.explainers import build_trace_explainer
-from odd_number.grades import grade_records, summarise_by_treatment
+from odd_number.grades import classify_parity, grade_records, summarise_by_treatment
 from odd_number.interviews import (
     SEED_REASONING_MODES,
     SEED_REASONING_SHOWN,
@@ -534,6 +551,137 @@ def cmd_interview(args: argparse.Namespace) -> int:
     return 2
 
 
+def list_branch_candidates(args: argparse.Namespace) -> int:
+    """Print every rollout in the source file that a sweep could branch from."""
+    candidates = find_branch_candidates(args.source, args.treatment)
+    if not candidates:
+        print(f"no {args.treatment!r} rollouts in {args.source.name}", file=sys.stderr)
+        return 2
+    print(f"{'idx':>4} {'parity':<12} {'answer':>7} {'chars':>7} {'sentences':>10}")
+    for candidate in sorted(candidates, key=lambda c: -c.reasoning_chars):
+        print(
+            f"{candidate.index:>4} {candidate.parity:<12} "
+            f"{str(candidate.answer):>7} {candidate.reasoning_chars:>7} "
+            f"{candidate.sentences:>10}"
+        )
+    return 0
+
+
+def resolve_branch_path(args: argparse.Namespace, model: PinnedModel) -> Path:
+    """One file per (model, source trace), so each curve stands alone."""
+    if args.out:
+        return args.out
+    stem = f"{model.slug.replace('/', '-')}-{args.treatment}-{args.index}"
+    return PROJECT_ROOT / "results" / "branches" / f"branch-{stem}.jsonl"
+
+
+def run_branch_sweep(args: argparse.Namespace, model: PinnedModel) -> int:
+    """Resample one trace at every chosen branch point, appending as rows land."""
+    try:
+        record = find_source_rollout(args.source, args.treatment, args.index)
+        template = resolve_template(model.slug)
+    except (KeyError, TemplateError) as exc:
+        print(exc.args[0], file=sys.stderr)
+        return 2
+
+    reasoning = record.get("reasoning") or ""
+    if not reasoning:
+        print(f"rollout {args.index} has no chain of thought to branch", file=sys.stderr)
+        return 2
+
+    sentences = split_sentences(reasoning)
+    branches = choose_branch_points(sentences, args.points)
+    answer = read_answer_literally(record.get("response") or "").number
+    request = ResampleRequest(
+        source_file=args.source.name,
+        source_index=args.index,
+        source_parity=classify_parity(answer),
+        treatment=args.treatment,
+        user_prompt=record.get("prompt") or "",
+        sampling=build_sampling(args),
+    )
+
+    out_path = resolve_branch_path(args, model)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    done = branch_completed_keys(out_path)
+    total = len(branches) * args.rollouts
+    print(f"source   {args.source.name} index {args.index} -> {request.source_parity} {answer}")
+    print(f"trace    {len(reasoning)} chars, {len(sentences)} sentences")
+    print(f"branches {[b.sentences_kept for b in branches]}")
+    print(f"{len(done)} of {total} already done -> {out_path}")
+
+    with out_path.open("a", encoding="utf-8") as handle, build_http_client() as client:
+        resampler = Resampler(client=client, template=template, model=model)
+        for resample in resampler.sweep(branches, request, args.rollouts, done, args.workers):
+            append_resample(handle, resample)
+            note = resample.error or f"{resample.parity} {resample.answer}"
+            print(f"  [kept {resample.sentences_kept:>4} #{resample.index:>3}] {note}")
+    return 0
+
+
+def cmd_branch(args: argparse.Namespace) -> int:
+    if args.list:
+        return list_branch_candidates(args)
+    if args.index is None:
+        print("--index is required unless --list is given", file=sys.stderr)
+        return 2
+    try:
+        model = resolve_pinned_model(args.model)
+    except KeyError as exc:
+        print(exc.args[0], file=sys.stderr)
+        return 2
+    return run_branch_sweep(args, model)
+
+
+def add_output_parsers(sub: argparse._SubParsersAction) -> None:
+    """`export-traces` and `build-explainer`: the two commands that write documents."""
+    export = sub.add_parser(
+        "export-traces", help="write every trace as Markdown chunks for reading"
+    )
+    export.add_argument("--results-dir", type=Path, default=PROJECT_ROOT / "results")
+    export.add_argument("--out", type=Path, required=True, help="directory for the chunks")
+    export.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS)
+    export.set_defaults(func=cmd_export_traces)
+
+    explainer = sub.add_parser("build-explainer", help="build the trace explainer page")
+    explainer.add_argument("--results-dir", type=Path, default=PROJECT_ROOT / "results")
+    explainer.add_argument(
+        "--readings-dir", type=Path, default=PROJECT_ROOT / "results" / "trace-readings"
+    )
+    explainer.add_argument(
+        "--syntheses-dir", type=Path, default=PROJECT_ROOT / "notes" / "trace-syntheses"
+    )
+    explainer.add_argument(
+        "--out", type=Path, default=PROJECT_ROOT / "explainers" / "odd-number-traces.html"
+    )
+    explainer.set_defaults(func=cmd_build_explainer)
+
+
+def add_branch_parser(sub: argparse._SubParsersAction) -> None:
+    """`branch`: resample one trace from truncation points (arXiv 2510.27484)."""
+    branch = sub.add_parser(
+        "branch",
+        help="resample a chain of thought from truncation points",
+        description=(
+            "Hold the first N sentences of a real trace as a prefix and resample "
+            "what follows, at several N. The shift in the odd rate across N is "
+            "where the answer was decided. Prefixes are always truncations of a "
+            "collected trace, never written by hand."
+        ),
+    )
+    branch.add_argument("--source", type=Path, required=True, help="a results JSONL file")
+    branch.add_argument("--treatment", default="conflict-grader")
+    branch.add_argument("--list", action="store_true", help="print branchable rollouts and exit")
+    branch.add_argument("--index", type=int, help="which rollout in --source to branch")
+    branch.add_argument("--model", default="qwen/qwen3.8-27b", help="must have a chat template")
+    branch.add_argument("--points", type=int, default=10, help="branch points, both ends included")
+    branch.add_argument("--rollouts", type=int, default=30, help="resamples per branch point")
+    branch.add_argument("--workers", type=int, default=8, help="calls in flight at once")
+    branch.add_argument("--out", type=Path)
+    add_sampling_flags(branch)
+    branch.set_defaults(func=cmd_branch)
+
+
 def add_sampling_flags(parser: argparse.ArgumentParser) -> None:
     """SamplingParams overrides. Defaults are stated, not implicit — see sampling.py."""
     parser.add_argument("--temperature", type=float, default=DEFAULT_SAMPLING.temperature)
@@ -643,7 +791,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--description",
         choices=sorted(DESCRIPTIONS),
         default=None,
-        help="add one of the post's description labels inside the metadata block",
+        help="add a description label inside the metadata block; see environment.py "
+        "for which are the post's and which are this project's",
     )
     collect.add_argument(
         "--arm",
@@ -679,27 +828,8 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--fixtures", type=Path, default=FIXTURES_PATH)
     validate.set_defaults(func=cmd_validate_judge)
 
-    export = sub.add_parser(
-        "export-traces", help="write every trace as Markdown chunks for reading"
-    )
-    export.add_argument("--results-dir", type=Path, default=PROJECT_ROOT / "results")
-    export.add_argument("--out", type=Path, required=True, help="directory for the chunks")
-    export.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS)
-    export.set_defaults(func=cmd_export_traces)
-
-    explainer = sub.add_parser("build-explainer", help="build the trace explainer page")
-    explainer.add_argument("--results-dir", type=Path, default=PROJECT_ROOT / "results")
-    explainer.add_argument(
-        "--readings-dir", type=Path, default=PROJECT_ROOT / "results" / "trace-readings"
-    )
-    explainer.add_argument(
-        "--syntheses-dir", type=Path, default=PROJECT_ROOT / "notes" / "trace-syntheses"
-    )
-    explainer.add_argument(
-        "--out", type=Path, default=PROJECT_ROOT / "explainers" / "odd-number-traces.html"
-    )
-    explainer.set_defaults(func=cmd_build_explainer)
-
+    add_output_parsers(sub)
+    add_branch_parser(sub)
     add_interview_parser(sub)
     return parser
 

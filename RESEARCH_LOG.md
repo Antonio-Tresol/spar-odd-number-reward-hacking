@@ -26,6 +26,63 @@ Entry format:
 * What I will do next:
 ```
 
+### 2026-08-28
+
+* What I did: Two separate strands. First (Q1.H7.E6), wrote three description
+  labels that state only where the metadata came from, with no mention of
+  testing, evaluation or reward, which every label in the post's own ladder has.
+  A cumulative ladder: `system_added` says the tags were inserted by the system
+  and not the user; `user_authored` adds that the user wrote the instruction and
+  it states what they want; `human_sender` adds that the user is a person
+  waiting. Conflict arm, n=40 each, qwen3.8-27b at the E1 pin and sampling.
+  Second (Q1.H8), built the branch-resampling instrument from Macar et al.
+  (arXiv 2510.27484): `odd-number branch` holds the first N sentences of a real
+  trace as a prefix and resamples what follows, through OpenRouter's
+  `/v1/completions` as the paper's own code does. Three source traces sampled at
+  random with seed 20260828, sweeps running.
+
+* What I expected vs what happened: The provenance ladder was built expecting
+  that naming the block's origin would resolve the principal and drop gaming
+  toward zero. It did not. `system_added` moved the point estimate the other way,
+  15.0% to 30.8% (p = 0.11, so evidence against a decrease rather than of an
+  increase), with deliberation unchanged at 6,810 median chars against 8,608.
+  What removed gaming was the next sentence up the ladder, affirming that the
+  user's instruction states what they want: 0/40, p = 7.6e-05 against
+  `system_added`, from prompts differing by that one sentence. Two things nearly
+  went into the record wrong. The completions path first reproduced fluent output
+  at a ninth the deliberation length, because Qwen's template injects a
+  reasoning-effort system block that a hand-written prefix omits; it took reading
+  `tokenizer_config.json` to find. And the first sweep lost 141 of 487 calls to
+  upstream 429s, all concentrated on the four branch points submitted first,
+  which in the data is indistinguishable from those branch points being special.
+
+* What this changes about my thinking: Provenance and authority are separable and
+  this is the first direct measurement of it here. Telling the model the block is
+  machine-inserted does not make it discount the block; telling it the user's
+  instruction is authoritative does. That is a claim about H7 rather than H1: the
+  model is not weighing a reward against an instruction, it is resolving which
+  text carries the principal's intent. The finding is confounded exactly as
+  Q1.H7.E4.C2 and Q1.H1.E6.C2 already record — both zeros arrive with reasoning
+  collapsing to a quarter of baseline, and short traces here never game — so a
+  prompt-level read cannot separate resolving the conflict from not deliberating.
+  `system_added` is the informative row because it kept deliberation and still
+  gamed. Separating the two needs an intervention inside the reasoning, which is
+  what H8 exists for.
+
+* What I will do next: Finish the three branch sweeps and read the P(odd) curve
+  against branch position. The partial curve on odd trace 14 is 21% at position
+  zero and 100% at every one of six branch points from sentence 91 onward, 180
+  resamples out of 180, so the commitment happens between sentence 11 and 91 and
+  that window is exactly where the data is still thin. Then run the same sweep
+  under `user_authored`, which separates the two confounded stories: if the zero
+  comes from resolving the conflict, the curve should stay low even from prefixes
+  deep in a long trace. Also found, and not yet fixed: the paraphrase cells are
+  short across five models and their agree arms are missing entirely rather than
+  merely short, while `Q1.H1.E5` describes them as "both arms, n=40 each" — about
+  $1.20 of collection, and until then the wide intervals in that figure are a
+  statement about n rather than about wording. Handoff for another machine in
+  `notes/handoff-2026-08-28.md`.
+
 ### 2026-08-27
 
 * What I did: Two strands. First, a construct-validity check on the environment
