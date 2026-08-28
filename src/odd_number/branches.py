@@ -223,6 +223,25 @@ def choose_branch_points(sentences: Sequence[str], count: int) -> list[BranchPoi
     return [BranchPoint(sentences_kept=k, prefix="".join(sentences[:k])) for k in kept]
 
 
+def select_branch_points(sentences: Sequence[str], kept: Sequence[int]) -> list[BranchPoint]:
+    """Branch points at named prefix lengths, for sweeping one span sentence by
+    sentence.
+
+    `choose_branch_points` spreads its points over the whole trace, so resolving
+    a ten-sentence span to single sentences through it would mean buying every
+    other sentence of the trace as well. Naming the lengths buys the span alone.
+
+    Raises:
+        ValueError: when a length falls outside the trace, which would silently
+            truncate to a prefix the caller did not ask for.
+    """
+    total = len(sentences)
+    outside = sorted({k for k in kept if k < 0 or k > total})
+    if outside:
+        raise ValueError(f"branch points {outside} are outside a trace of {total} sentences")
+    return [BranchPoint(sentences_kept=k, prefix="".join(sentences[:k])) for k in sorted(set(kept))]
+
+
 def extract_answer(text: str) -> int | None:
     """The bare integer after the reasoning channel closes, or None.
 

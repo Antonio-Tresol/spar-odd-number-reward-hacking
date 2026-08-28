@@ -22,6 +22,7 @@ from odd_number.branches import (
     load_completed_keys,
     parse_continuation,
     request_continuation,
+    select_branch_points,
     split_sentences,
 )
 from odd_number.chat_templates import QWEN3_THINKING
@@ -367,3 +368,29 @@ def test_disagreeing_prompts_under_one_treatment_raise(tmp_path: Path) -> None:
     )
     with pytest.raises(KeyError, match="different prompts"):
         find_treatment_prompt(path, "conflict-grader")
+
+
+def test_named_branch_points_buy_only_what_was_named() -> None:
+    """An even grid over a whole trace cannot resolve one span sentence by sentence."""
+    sentences = split_sentences(TRACE)
+    points = select_branch_points(sentences, [1, 3, 2])
+    assert [b.sentences_kept for b in points] == [1, 2, 3]
+    assert points[2].prefix == "".join(sentences[:3])
+
+
+def test_a_repeated_branch_point_is_bought_once() -> None:
+    assert len(select_branch_points(split_sentences(TRACE), [2, 2, 2])) == 1
+
+
+@pytest.mark.parametrize("kept", [[-1], [99], [1, 99]])
+def test_a_branch_point_outside_the_trace_raises(kept: list[int]) -> None:
+    """Clamping would sweep a prefix the caller never asked for."""
+    with pytest.raises(ValueError, match="outside a trace"):
+        select_branch_points(split_sentences(TRACE), kept)
+
+
+def test_both_ends_are_nameable() -> None:
+    sentences = split_sentences(TRACE)
+    points = select_branch_points(sentences, [0, len(sentences)])
+    assert points[0].prefix == ""
+    assert points[1].prefix == TRACE

@@ -50,6 +50,7 @@ from odd_number.branches import (
     find_branch_candidates,
     find_source_rollout,
     find_treatment_prompt,
+    select_branch_points,
     split_sentences,
 )
 from odd_number.branches import load_completed_keys as branch_completed_keys
@@ -624,7 +625,15 @@ def run_branch_sweep(args: argparse.Namespace, model: PinnedModel) -> int:
         return 2
 
     sentences = split_sentences(reasoning)
-    branches = choose_branch_points(sentences, args.points)
+    try:
+        branches = (
+            select_branch_points(sentences, args.kept)
+            if args.kept
+            else choose_branch_points(sentences, args.points)
+        )
+    except ValueError as exc:
+        print(exc.args[0], file=sys.stderr)
+        return 2
     answer = read_answer_literally(record.get("response") or "").number
     try:
         prompt_file, prompt_treatment, user_prompt = resolve_branch_prompt(args, record)
@@ -780,6 +789,13 @@ def add_branch_parser(sub: argparse._SubParsersAction) -> None:
     branch.add_argument("--index", type=int, help="which rollout in --source to branch")
     branch.add_argument("--model", default="qwen/qwen3.8-27b", help="must have a chat template")
     branch.add_argument("--points", type=int, default=10, help="branch points, both ends included")
+    branch.add_argument(
+        "--kept",
+        type=int,
+        nargs="+",
+        help="branch at these prefix lengths instead of an even grid, for "
+        "resolving one span sentence by sentence",
+    )
     branch.add_argument("--rollouts", type=int, default=30, help="resamples per branch point")
     branch.add_argument("--workers", type=int, default=8, help="calls in flight at once")
     branch.add_argument("--out", type=Path)
