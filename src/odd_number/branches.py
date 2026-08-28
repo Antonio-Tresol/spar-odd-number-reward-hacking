@@ -126,8 +126,15 @@ class ResampleRequest:
     source_index: int
     source_parity: str
     treatment: str
+    prompt_file: str
+    prompt_treatment: str
     user_prompt: str
     sampling: SamplingParams
+
+    @property
+    def is_cross_prompt(self) -> bool:
+        """Whether the prompt comes from somewhere other than the branched trace."""
+        return (self.prompt_file, self.prompt_treatment) != (self.source_file, self.treatment)
 
     def derive_seed(self, sentences_kept: int, index: int) -> int:
         """A stable seed, distinct per branch point and resample.
@@ -136,8 +143,15 @@ class ResampleRequest:
         branch point's resamples is what turns a distribution into a point mass.
         Built from a digest rather than `hash`, which is salted per process and
         would give a resumed run different seeds from the run it resumes.
+
+        A same-prompt sweep keeps the key it had before cross-prompt sweeps
+        existed, so a run already on disk resumes against the seeds it was bought
+        with. A cross-prompt sweep is a different condition and takes a different
+        key, so the two never draw the same sample from the same branch point.
         """
         key = f"{self.source_file}:{self.source_index}:{sentences_kept}:{index}"
+        if self.is_cross_prompt:
+            key = f"{self.prompt_file}:{self.prompt_treatment}|{key}"
         return int.from_bytes(sha256(key.encode()).digest()[:4]) % (2**31)
 
 
@@ -152,6 +166,8 @@ class Resample:
     source_index: int
     source_parity: str
     treatment: str
+    prompt_file: str
+    prompt_treatment: str
     model: str
     snapshot: str
     provider: str
@@ -320,6 +336,8 @@ def collect_resample(
         source_index=request.source_index,
         source_parity=request.source_parity,
         treatment=request.treatment,
+        prompt_file=request.prompt_file,
+        prompt_treatment=request.prompt_treatment,
         model=model.slug,
         snapshot=model.snapshot,
         provider=model.provider,
@@ -407,6 +425,33 @@ def find_branch_candidates(path: Path, treatment: str) -> list[BranchCandidate]:
             )
         )
     return candidates
+
+
+def find_treatment_prompt(path: Path, treatment: str) -> str:
+    """The one user prompt a treatment was collected under, from a results file.
+
+    A cross-prompt sweep continues one condition's prefix under another
+    condition's prompt, so the prompt has to come from a file the prefix did not.
+    Disagreeing prompts under one treatment label would make that swap
+    unreadable, so more than one distinct prompt raises rather than picking.
+
+    Raises:
+        KeyError: when the treatment is absent, or its rollouts disagree about
+            the prompt.
+    """
+    prompts = {
+        record.get("prompt") or ""
+        for record in read_rollouts(path)
+        if record.get("treatment") == treatment
+    }
+    if not prompts:
+        raise KeyError(f"no rollout with treatment {treatment!r} in {path.name}")
+    if len(prompts) > 1:
+        raise KeyError(
+            f"treatment {treatment!r} in {path.name} was collected under "
+            f"{len(prompts)} different prompts; a cross-prompt sweep needs one"
+        )
+    return prompts.pop()
 
 
 def find_source_rollout(path: Path, treatment: str, index: int) -> RolloutRecord:

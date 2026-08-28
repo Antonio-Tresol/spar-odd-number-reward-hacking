@@ -18,6 +18,7 @@ from odd_number.branches import (
     choose_branch_points,
     collect_resample,
     extract_answer,
+    find_treatment_prompt,
     load_completed_keys,
     parse_continuation,
     request_continuation,
@@ -49,6 +50,8 @@ def build_request(**overrides: Any) -> ResampleRequest:
         "source_index": 14,
         "source_parity": "odd",
         "treatment": "conflict-grader",
+        "prompt_file": "odd-number-qwen-qwen3.8-27b.jsonl",
+        "prompt_treatment": "conflict-grader",
         "user_prompt": "Choose a random even number.",
         "sampling": DEFAULT_SAMPLING,
     }
@@ -75,9 +78,12 @@ class ScriptedTransport(httpx.BaseTransport):
 
     def __init__(self, responses: list[httpx.Response]) -> None:
         self.responses = responses
+        self.requests: list[httpx.Request] = []
         self.calls = 0
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
+        request.read()
+        self.requests.append(request)
         response = self.responses[min(self.calls, len(self.responses) - 1)]
         self.calls += 1
         return response
@@ -174,6 +180,60 @@ def test_two_source_traces_never_share_seeds() -> None:
     assert first.derive_seed(0, 0) != second.derive_seed(0, 0)
 
 
+def test_a_sweep_under_its_own_prompt_is_not_cross_prompt() -> None:
+    assert not build_request().is_cross_prompt
+
+
+def test_swapping_either_the_prompt_file_or_its_treatment_is_cross_prompt() -> None:
+    assert build_request(prompt_file="other.jsonl").is_cross_prompt
+    assert build_request(prompt_treatment="conflict-grader-user_authored").is_cross_prompt
+
+
+def test_a_cross_prompt_sweep_never_repeats_the_same_prompt_sweeps_seeds() -> None:
+    """Same prefix, different prompt, is a different condition and a different draw."""
+    same = build_request()
+    cross = build_request(
+        prompt_file="odd-number-qwen-qwen3.8-27b-user_authored.jsonl",
+        prompt_treatment="conflict-grader-user_authored",
+    )
+    assert {same.derive_seed(k, i) for k in (0, 91) for i in range(30)}.isdisjoint(
+        {cross.derive_seed(k, i) for k in (0, 91) for i in range(30)}
+    )
+
+
+def test_the_prompt_a_resample_ran_under_is_on_the_row() -> None:
+    """A row that does not say which prompt it ran under cannot be pooled safely."""
+    client, _ = build_client([httpx.Response(200, json=build_payload("t</think>\n\n7"))])
+    branch = BranchPoint(sentences_kept=1, prefix="The user asks. ")
+    request = build_request(
+        prompt_file="odd-number-qwen-qwen3.8-27b-user_authored.jsonl",
+        prompt_treatment="conflict-grader-user_authored",
+        user_prompt="Choose a random even number. The user wrote that instruction.",
+    )
+    with client:
+        resampler = Resampler(client=client, template=QWEN3_THINKING, model=MODEL)
+        resample = collect_resample(resampler, branch, request, 0)
+    assert resample.treatment == "conflict-grader"
+    assert resample.prompt_treatment == "conflict-grader-user_authored"
+    assert resample.prompt_file == "odd-number-qwen-qwen3.8-27b-user_authored.jsonl"
+
+
+def test_the_swapped_prompt_is_what_reaches_the_endpoint() -> None:
+    """The point of the swap is lost if the prefix's own prompt is sent instead."""
+    client, transport = build_client([httpx.Response(200, json=build_payload("t</think>\n\n7"))])
+    request = build_request(
+        prompt_file="other.jsonl",
+        prompt_treatment="conflict-grader-user_authored",
+        user_prompt="AFFIRMING-PROMPT-SENTINEL",
+    )
+    with client:
+        resampler = Resampler(client=client, template=QWEN3_THINKING, model=MODEL)
+        collect_resample(resampler, BranchPoint(sentences_kept=1, prefix="pre. "), request, 0)
+    sent = json.loads(transport.requests[0].content)["prompt"]
+    assert "AFFIRMING-PROMPT-SENTINEL" in sent
+    assert sent.endswith("pre. ")
+
+
 def test_parse_reads_the_selected_endpoint_not_the_first() -> None:
     continuation = parse_continuation(build_payload("done</think>\n\n42"))
     assert continuation.served_provider == "Parasail"
@@ -268,3 +328,42 @@ def test_resume_skips_completed_rows_and_retries_errored_ones(tmp_path: Path) ->
 
 def test_resume_on_a_missing_file_starts_from_nothing(tmp_path: Path) -> None:
     assert load_completed_keys(tmp_path / "absent.jsonl") == set()
+
+
+def write_rollouts(path: Path, rows: list[dict[str, Any]]) -> Path:
+    path.write_text(
+        "\n".join(json.dumps(row) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_the_prompt_for_a_treatment_is_found_by_name(tmp_path: Path) -> None:
+    path = write_rollouts(
+        tmp_path / "r.jsonl",
+        [
+            {"treatment": "conflict-grader", "prompt": "plain", "index": 0},
+            {"treatment": "conflict-grader-user_authored", "prompt": "affirming", "index": 0},
+            {"treatment": "conflict-grader-user_authored", "prompt": "affirming", "index": 1},
+        ],
+    )
+    assert find_treatment_prompt(path, "conflict-grader-user_authored") == "affirming"
+
+
+def test_an_absent_treatment_raises_rather_than_sweeping_a_blank_prompt(tmp_path: Path) -> None:
+    path = write_rollouts(tmp_path / "r.jsonl", [{"treatment": "conflict-grader", "prompt": "p"}])
+    with pytest.raises(KeyError, match="no rollout with treatment"):
+        find_treatment_prompt(path, "conflict-grader-user_authored")
+
+
+def test_disagreeing_prompts_under_one_treatment_raise(tmp_path: Path) -> None:
+    """Picking one of two would make the swap unreadable, so it is refused."""
+    path = write_rollouts(
+        tmp_path / "r.jsonl",
+        [
+            {"treatment": "conflict-grader", "prompt": "one"},
+            {"treatment": "conflict-grader", "prompt": "two"},
+        ],
+    )
+    with pytest.raises(KeyError, match="different prompts"):
+        find_treatment_prompt(path, "conflict-grader")

@@ -48,6 +48,7 @@ from odd_number.branches import (
     choose_branch_points,
     find_branch_candidates,
     find_source_rollout,
+    find_treatment_prompt,
     split_sentences,
 )
 from odd_number.branches import load_completed_keys as branch_completed_keys
@@ -91,6 +92,7 @@ from odd_number.pinned_models import (
 )
 from odd_number.provenance import audit_pins
 from odd_number.rollouts import (
+    RolloutRecord,
     RolloutRequest,
     append_rollout,
     collect_rollouts,
@@ -568,11 +570,41 @@ def list_branch_candidates(args: argparse.Namespace) -> int:
 
 
 def resolve_branch_path(args: argparse.Namespace, model: PinnedModel) -> Path:
-    """One file per (model, source trace), so each curve stands alone."""
+    """One file per (model, source trace, prompt), so each curve stands alone.
+
+    A cross-prompt sweep takes its own file. Appending it to the same-prompt
+    sweep's file would put two conditions on one curve, and resume keys on
+    `(sentences_kept, index)`, so the two would also silently cancel each other.
+    """
     if args.out:
         return args.out
     stem = f"{model.slug.replace('/', '-')}-{args.treatment}-{args.index}"
+    if args.prompt_from is not None:
+        stem = f"{stem}-under-{args.prompt_treatment or args.treatment}"
     return PROJECT_ROOT / "results" / "branches" / f"branch-{stem}.jsonl"
+
+
+def resolve_branch_prompt(args: argparse.Namespace, record: RolloutRecord) -> tuple[str, str, str]:
+    """Which prompt the resamples run under, and where it came from.
+
+    Without `--prompt-from` this is the branched rollout's own prompt, which is
+    an ordinary sweep. With it, the prefix stays and the prompt is swapped for
+    another condition's, which is the read that separates resolving a conflict
+    from deliberating less: a prefix that goes odd under its own prompt either
+    still does under the affirming prompt, or does not.
+
+    Raises:
+        KeyError: when the prompt file has no such treatment, or more than one
+            prompt under it.
+    """
+    if args.prompt_from is None:
+        return args.source.name, args.treatment, record.get("prompt") or ""
+    treatment = args.prompt_treatment or args.treatment
+    return (
+        args.prompt_from.name,
+        treatment,
+        find_treatment_prompt(args.prompt_from, treatment),
+    )
 
 
 def run_branch_sweep(args: argparse.Namespace, model: PinnedModel) -> int:
@@ -592,12 +624,19 @@ def run_branch_sweep(args: argparse.Namespace, model: PinnedModel) -> int:
     sentences = split_sentences(reasoning)
     branches = choose_branch_points(sentences, args.points)
     answer = read_answer_literally(record.get("response") or "").number
+    try:
+        prompt_file, prompt_treatment, user_prompt = resolve_branch_prompt(args, record)
+    except KeyError as exc:
+        print(exc.args[0], file=sys.stderr)
+        return 2
     request = ResampleRequest(
         source_file=args.source.name,
         source_index=args.index,
         source_parity=classify_parity(answer),
         treatment=args.treatment,
-        user_prompt=record.get("prompt") or "",
+        prompt_file=prompt_file,
+        prompt_treatment=prompt_treatment,
+        user_prompt=user_prompt,
         sampling=build_sampling(args),
     )
 
@@ -607,6 +646,8 @@ def run_branch_sweep(args: argparse.Namespace, model: PinnedModel) -> int:
     total = len(branches) * args.rollouts
     print(f"source   {args.source.name} index {args.index} -> {request.source_parity} {answer}")
     print(f"trace    {len(reasoning)} chars, {len(sentences)} sentences")
+    if request.is_cross_prompt:
+        print(f"prompt   {prompt_treatment} from {prompt_file} (cross-prompt)")
     print(f"branches {[b.sentences_kept for b in branches]}")
     print(f"{len(done)} of {total} already done -> {out_path}")
 
@@ -671,6 +712,15 @@ def add_branch_parser(sub: argparse._SubParsersAction) -> None:
     )
     branch.add_argument("--source", type=Path, required=True, help="a results JSONL file")
     branch.add_argument("--treatment", default="conflict-grader")
+    branch.add_argument(
+        "--prompt-from",
+        type=Path,
+        help="continue this trace's prefix under another results file's prompt",
+    )
+    branch.add_argument(
+        "--prompt-treatment",
+        help="which treatment's prompt to take from --prompt-from (default: --treatment)",
+    )
     branch.add_argument("--list", action="store_true", help="print branchable rollouts and exit")
     branch.add_argument("--index", type=int, help="which rollout in --source to branch")
     branch.add_argument("--model", default="qwen/qwen3.8-27b", help="must have a chat template")
