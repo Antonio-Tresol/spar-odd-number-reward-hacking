@@ -198,6 +198,8 @@ cannot land on one curve.
 | 22 | 914 | 15/30 = 50% | 1/30 = 3% | 6.4e-05 |
 | 32 | 1,472 | 25/30 = 83% | 8/28 = 29% | 4.5e-05 |
 | 43 | 2,131 | 28/29 = 97% | 8/28 = 29% | 4.5e-08 |
+| 137 | 6,873 | 29/29 = 100% | 18/30 = 60% | 0.00012 |
+| 205 | 9,962 | 30/30 = 100% | 30/30 = 100% | 1 |
 
 Both stories fail, each for a reason the other supplies.
 
@@ -220,6 +222,13 @@ The empty-prefix cell is a positive control for the swap. It reproduces the
 `user_authored` collection-time rate, 0/30 here against 0/40 there, which is
 what a correctly rendered swapped prompt should do.
 
+The sentence is still working at 137 sentences, where the plain prompt is 29 of
+29 and the affirming prompt 18 of 30. The 205-sentence row is the harness's
+anchor: with the whole trace held, the model closes and answers, and both
+prompts return the source trace's odd answer 30 times in 30. The empty-prefix
+row is the control at the other end, 0 of 30 against the 0 of 40 that condition
+gave at collection time, so the swapped prompt is rendering correctly at both
+anchors.
+
 Data:
 `results/branches/branch-qwen-qwen3.8-27b-conflict-grader-14-under-conflict-grader-user_authored.jsonl`.
-Branch points deeper than 43 were still collecting when this was written.

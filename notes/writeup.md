@@ -361,6 +361,8 @@ stated conclusion.
 | 22 | 914 | 15/30 = 50% | 1/30 = 3% | 6.4e-05 |
 | 32 | 1,472 | 25/30 = 83% | 8/28 = 29% | 4.5e-05 |
 | 43 | 2,131 | 28/29 = 97% | 8/28 = 29% | 4.5e-08 |
+| 137 | 6,873 | 29/29 = 100% | 18/30 = 60% | 0.00012 |
+| 205 | 9,962 | 30/30 = 100% | 30/30 = 100% | 1 |
 
 We found the third outcome. Neither clean story survives, and each fails for a
 reason the other explains.
@@ -381,6 +383,17 @@ Put as one number: those 2,131 characters are worth +74 points under the plain
 prompt and +29 under the affirming one. The affirming sentence leaves the shape
 of the curve intact and cuts its height, so the prefix goes on accumulating
 commitment while the sentence raises how much of it is needed.
+
+The sentence is still working very deep into the trace. At 137 sentences, 6,873
+characters, the plain prompt is 29 of 29 odd and the affirming prompt is 18 of
+30, p = 0.00012.
+
+The last row is the harness's own anchor. With all 205 sentences held, the model
+has only to close its reasoning and give the number, and both prompts return the
+source trace's odd answer 30 times in 30. The prompt stops mattering once the
+reasoning is complete, which is what a correctly rendered swap should do, and
+the empty-prefix row is the matching control at the other end: 0 of 30 against
+the 0 of 40 that the affirming condition gave at collection time.
 
 ## 6. Reward-seeking in outcome, frame inference in mechanism
 

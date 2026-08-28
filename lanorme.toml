@@ -69,6 +69,13 @@ exclude = [
     "research/**",
 ]
 
+# JUNK-002 treats a committed image as junk unless a directory is declared to
+# hold them. `figures/` holds figures built by `odd-number branch-figure` from
+# results files, which travel with the write-up and are regenerable from the
+# JSONL, so they are assets rather than strays.
+[stray_artifacts]
+assets = ["figures"]
+
 # PROV-003 (statistics must carry a claim marker) is opt-in and applies only
 # to files matched here. Point it at whatever holds your deliverables.
 [provenance]
