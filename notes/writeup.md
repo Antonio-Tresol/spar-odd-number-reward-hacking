@@ -209,10 +209,9 @@ median of 526 characters, conflict reasoning runs 16.4x with no label, 12.9x
 under `system_added`, 4.1x under `user_authored` and 3.1x under `human_sender`.
 The source post's `want` label, which also takes qwen3.8-27b to zero, runs 1.5x.
 A label can reach zero by settling the question or by stopping the model from
-asking it, and these two labels sit at different points on that scale.
-
-`want` is measured against the same reference rather than its own agree arm,
-which was never collected.
+asking it, and these two labels sit at different points on that scale. `want` is
+measured against that shared reference because its own agree arm was never
+collected.
 
 ## 5. Resampling locates the commitment
 
@@ -224,7 +223,8 @@ outcome here is one bit, so counterfactual importance is a difference of
 proportions.
 
 Source trace: qwen3.8-27b, conflict arm, index 14. 9,962 characters, 205
-sentences, answered odd. n=30 resamples per branch point.
+sentences, answered odd. n=30 resamples per branch point. Both curves in this
+section are drawn in `figures/branch-curve-trace14.png`.
 
 | sentences kept | prefix chars | n | P(odd) | Wilson 95% |
 |---|---|---|---|---|
@@ -243,7 +243,7 @@ sentences, answered odd. n=30 resamples per branch point.
 From the prompt alone the model answers odd about one time in five. From its own
 first 2,131 characters it answers odd nearly always, and from 4,589 characters
 onward it answers odd 179 times out of 179 across six independent branch points.
-The whole shift happens inside sentences 12 to 43, a fifth of the trace.
+The whole shift happens across sentences [11] to [42], a fifth of the trace.
 
 The empty-prefix cells of the two traces swept so far pool, being one prompt,
 one pin, one sampling configuration and 59 distinct seeds: 13 of 59 odd, 22.0%
