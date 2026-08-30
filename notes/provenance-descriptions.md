@@ -34,7 +34,7 @@ grader, the same placement as the post's labels):
 | description | conflict | gaming | Wilson 95% | conflict CoT | agree | agree CoT | ratio |
 |---|---|---|---|---|---|---|---|
 | (none) | 6/40 | 15.0% | [7.1%, 29.1%] | 8,608 | 0/40 | 526 | 16.4x |
-| `system_added` | 12/39 | 30.8% | [18.6%, 46.4%] | 6,810 | 0/40 | 527 | 12.9x |
+| `system_added` | 12/39 | 30.8% | [18.6%, 46.4%] | 6,981 | 0/40 | 527 | 13.3x |
 | `user_authored` | 0/40 | 0.0% | [0.0%, 8.8%] | 2,142 | 0/40 | 476 | 4.5x |
 | `human_sender` | 0/40 | 0.0% | [0.0%, 8.8%] | 1,623 | 0/40 | 498 | 3.3x |
 
@@ -95,7 +95,7 @@ do not support is a claim about *why*, because deliberation did fall by three
 quarters and the residual 3.3x is an argument from magnitude, not a mechanism.
 
 `system_added` remains the informative row for mechanism: it kept deliberation at
-12.9x, near the baseline's 16.4x, and still failed to reduce gaming. Whatever
+13.3x, near the baseline's 16.4x, and still failed to reduce gaming. Whatever
 drives the odd answer survives being told the block is machine-inserted.
 
 Separating "resolved the conflict" from "deliberated less" needs an intervention

@@ -26,6 +26,62 @@ Entry format:
 * What I will do next:
 ```
 
+### 2026-08-29
+
+* What I did: Pulled 30 commits and ran the validate-claims gate that the
+  previous entry named as the next step. Recomputed every rate-bearing number in
+  the deliverable draft and in the tree directly from the results files,
+  reproducing `grade --judge` offline by reading the cached judgement sidecars,
+  so no API key was needed. Antonio asked for the draft to be removed so that he
+  can write the deliverable himself, so `notes/writeup.md` is deleted; it stays
+  in git history at `aa0843c`. The corrections the gate found were applied to
+  TREE.md and `notes/provenance-descriptions.md`, which are the files that
+  outlive the draft. Also committed the residue of a throttled background pass at
+  the paraphrase gaps: three new successful rollouts in p1, all even, and 35 rows
+  carrying only a 429.
+
+* What I expected vs what happened: Section 1 reproduced exactly on all nine
+  models, including the pooled agree arm at 0 odd in 357 parseable of 360, and so
+  did the three-trace and cross-prompt tables. Three numbers did not. The
+  `system_added` median conflict reasoning is 6,981 chars, not 6,810: the median
+  was taken over 40 rows while the 12/39 in the same sentence excludes one of
+  them, index 8, a provider abort carrying `finish_reason="error"`, 1,393 chars
+  of reasoning and an empty response. One table row, two denominators. The ratio
+  against the shared reference moves from 12.9x to 13.3x, which strengthens the
+  claim rather than weakening it, since the row exists to show that deliberation
+  stayed near baseline. Then two numbers in `Q1.H8.E1.C3` had gone stale under
+  the per-sentence sweep that landed after the node was written. "100% from 46
+  sentences on, 240 of 240 across eight branch points" is still true of those
+  eight points, but the same file now holds thin cells at 47, 54 and 65 left by a
+  coarser grid, and the one at 54 returned an even answer once, so all eleven
+  points pool to 259 of 260. And the distinct-answer count neither falls
+  monotonically nor stays at 1: it is 2 again at 159, where one continuation
+  answered 7, and 422 of the sweep's 540 odd answers are 1 rather than 304 of
+  350.
+
+* What this changes about my thinking: The abort row is the one worth
+  remembering, because nothing about it looks like a failure at a glance. It
+  carries 1,393 characters of real reasoning text, so any statistic computed over
+  "rows that have reasoning" quietly includes a rollout the model never finished,
+  while every count in the same sentence excludes it. The project already owns
+  one definition of what counts as a rollout, `is_collected`, and the durable fix
+  is to route every statistic through it rather than to remember the exception.
+  The staleness is a different failure and the second one this week: both numbers
+  were right when written and became wrong when more data landed in the same
+  file. That is the case for the claim markers the validate-claims skill
+  describes, which lanorme's PROV-001 already implements and which nothing here
+  uses. `claim_bearing` in `lanorme.toml` points at `reports/**` and
+  `findings/**`, neither of which exists, and `notes/**` is excluded from linting
+  altogether, so no deliverable this project has written has ever been
+  machine-checked. Every number in it was checked by hand, twice, and the hand
+  missed three.
+
+* What I will do next: Antonio writes the deliverable. Nothing else changed
+  about the open work: the falsify gate has still not run on any claim and every
+  node is `unvalidated`, and the experiments left open are the ones handoff-b
+  lists, Kimi K3 as a second branch model, the per-sentence sweep across
+  sentences [21] to [42], and the paraphrase gaps.
+
 ### 2026-08-28
 
 * What I did: Two separate strands. First (Q1.H7.E6), wrote three description
