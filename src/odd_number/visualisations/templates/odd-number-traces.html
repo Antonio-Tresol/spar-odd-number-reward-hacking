@@ -723,10 +723,21 @@ dialog.notes .x:hover { color: var(--ink); }
     const n = noteFor(key), id = 'm' + Date.now().toString(36) + Math.floor(Math.random() * 4096).toString(36);
     n.marks.push({ id, field: p.field, start: p.start, quote: p.quote, note: '' });
     touch(key);
-    if (p.view === 'commitment') renderCommitment();
-    else if (p.view === 'interviews') renderInterviews();
-    else { const t = byKey.get(S.trace); if (t) redrawTrace(t); }
+    if (p.view === 'commitment') keepingScroll(el('view-commitment'), renderCommitment);
+    else if (p.view === 'interviews') keepingScroll(el('view-interviews'), renderInterviews);
+    else { const t = byKey.get(S.trace); if (t) redrawTrace(t); }  // redrawTrace keeps its own scroll
     focusMark(id);
+  }
+
+  // Re-rendering a view to show a new mark costs its scroll position, so put it
+  // back. The margin has to be laid out inside this too: `focusMark` scrolls the
+  // card into view, and a card that has not been placed yet is still at the top of
+  // its gutter, so the scroll goes somewhere the reader was not.
+  function keepingScroll(view, render) {
+    const top = view ? view.scrollTop : 0;
+    render();
+    layoutNotes();
+    if (view) view.scrollTop = top;
   }
 
   // Every view that shows marks wires the same three controls, so they are written
@@ -741,7 +752,8 @@ dialog.notes .x:hover { color: var(--ink); }
       const own = noteFor(b.dataset.noteKey);
       own.marks = (own.marks || []).filter(x => x.id !== b.dataset.delMark);
       touch(b.dataset.noteKey);
-      if (b.dataset.rerender === 'commitment') renderCommitment(); else renderInterviews();
+      if (b.dataset.rerender === 'commitment') keepingScroll(el('view-commitment'), renderCommitment);
+      else keepingScroll(el('view-interviews'), renderInterviews);
     }));
     root.querySelectorAll('mark.hl[data-mark]').forEach(mk => mk.addEventListener('click', () => focusMark(mk.dataset.mark)));
   }

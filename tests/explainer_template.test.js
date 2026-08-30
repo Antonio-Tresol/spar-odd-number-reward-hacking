@@ -136,6 +136,17 @@ assert.ok(/document\.querySelectorAll\('\.split-read'\)\.forEach\(layoutOneSplit
 assert.ok(/!split\.offsetParent/.test(behaviour),
   'a hidden split must be skipped rather than laid out against zero rectangles');
 
+// Pinning a note rebuilds the view, and a rebuilt element starts at scroll zero.
+// Measured before the fix: a sentence 446px down ended up 2,161px down. The margin
+// has to be laid out inside the same step, because focusMark scrolls the card into
+// view and an unplaced card still sits at the top of its gutter.
+assert.ok(/function keepingScroll\(view, render\) \{[\s\S]*?const top = view \? view\.scrollTop : 0;[\s\S]*?render\(\);[\s\S]*?layoutNotes\(\);[\s\S]*?view\.scrollTop = top;/.test(behaviour),
+  'keepingScroll must render, lay out, then restore the scroll, in that order');
+for (const view of ['commitment', 'interviews']) {
+  assert.ok(behaviour.includes(`keepingScroll(el('view-${view}'), render`),
+    `${view} must re-render through keepingScroll so pinning a note does not scroll the page`);
+}
+
 // ---------- the markup the notes and sampling code reaches for
 for (const id of ['railnav', 'crumbs', 'notes-dialog', 'notes-state', 'notes-save', 'notes-import', 'samplerow', 'btn-sample', 's-note', 'f-mine', 'copy-selection', 'charts']) {
   assert.ok(html.includes(`id="${id}"`), `the page must carry #${id}`);
