@@ -82,6 +82,46 @@ Entry format:
   lists, Kimi K3 as a second branch model, the per-sentence sweep across
   sentences [21] to [42], and the paraphrase gaps.
 
+### Addendum, 2026-08-29 — the same bug in two more nodes, and a fact the draft was carrying alone
+
+* What I did: The 6,810 error was not an instance, it was a class: a median
+  computed over a different row set than the count sitting beside it in the same
+  sentence. The previous session's sweep across all 96 file-and-treatment cells
+  checked rates, so no median in the tree had ever been recomputed by anything.
+  Checked the two nodes that carry them. `Q1.H1.E1.C2` is clean: all ten values
+  are Python's `round()` of the true median, banker's rounding included, which is
+  why three of them look wrong at a glance and are not, and its three truncated
+  qwen3.5 agree rollouts are deliberately kept, which the node says. `Q1.H8.E1.C1`
+  was not clean and held three separate errors.
+
+* What I expected vs what happened: Its two deliberation medians read 9,602 chars
+  on the completions path against 8,434 on the chat path. The chat-path figure is
+  this corpus's most-cited number, the baseline conflict arm, and it is 8,608
+  everywhere else in the tree, including two nodes above it. The completions
+  figure was measured before the second and third sweeps landed in the files it
+  reads, and is 9,904 over all 88 empty-prefix rollouts. The node also listed its
+  pooled components as 7/30, 7/30 and 3/30 while stating their total as 88, which
+  cannot both be true: trace 17's empty-prefix cell is 3/28, two of its thirty
+  rollouts having returned no readable number. A claim that carries its own
+  arithmetic can be checked against itself, and this one had been read several
+  times without anyone adding the three numbers up, including by me earlier today.
+
+* What this changes about my thinking: One fact was about to be lost rather than
+  merely wrong. qwen3.5-27b's agree arm is 0 of 37 parseable, not 0 of 40, since
+  three rollouts ran to the token cap and returned an empty response after about
+  80,000 characters of reasoning. It lived only in the deleted draft's table, and
+  `Q1.H1.E1.C2` mentioned those three rollouts only as a reason to prefer medians
+  over means, never as a denominator. Deleting a document deletes whatever it was
+  the only carrier of, and the check for that is not "does anything link to this
+  file" but "does anything else record what it knows". It is in `Q1.H1.E1.C1` now,
+  beside the gpt-oss-20b caveat that was already there. Also corrected the two
+  headlines saying trace 14's answer is determined inside a fifth of the trace:
+  saturation is at sentence 46 of 205, which is a quarter, and the one even answer
+  above it sits at 54.
+
+* What I will do next: Unchanged. Antonio writes the deliverable, the falsify gate
+  has still never run, and every node is `unvalidated`.
+
 ### 2026-08-28
 
 * What I did: Two separate strands. First (Q1.H7.E6), wrote three description
