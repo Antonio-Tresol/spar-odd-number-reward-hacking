@@ -20,8 +20,8 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from odd_number.figures import CAPTION_INK, CONFLICT_ARM, is_base_cell, short_model
 from odd_number.traces import Trace
+from odd_number.visualisations.figures import CAPTION_INK, CONFLICT_ARM, is_base_cell, short_model
 
 #: Teal for an even answer, magenta for an odd one, as the explainer colours them.
 EVEN_INK: str = "#3f7f79"

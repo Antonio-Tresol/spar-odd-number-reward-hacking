@@ -118,13 +118,61 @@ def load_chunk_reading(chunk: TraceChunk, readings_dir: Path, reader: str) -> Ch
     )
 
 
+def cell_of(chunk: TraceChunk) -> tuple[str, str]:
+    """What a chunk is part of: one results file and one treatment."""
+    return (chunk.file, chunk.treatment)
+
+
+def rescue_notes_across_cell(
+    chunk: TraceChunk,
+    notes: list[dict[str, object]],
+    cell_traces: dict[int, Trace],
+) -> list[tuple[Trace, dict[str, object]]]:
+    """Pair notes with traces anywhere in the cell, by index alone.
+
+    `align_notes` matches within one chunk, which is right while the chunk
+    boundaries are the ones the reader saw. They move whenever the results file
+    grows, because `chunk_traces` splits on a character budget: three rollouts
+    added to a p1 cell on 2026-08-29 pushed traces across a boundary and left 13
+    notes facing 11 traces, which stopped the whole page building.
+
+    A note's identity is its file, treatment and index, never the chunk it was
+    written in, so this repairs the join without weakening it: an index either
+    names a trace in the cell or it does not. A note whose index is gone from the
+    cell is dropped, since there is nothing left for it to describe.
+    """
+    return [
+        (cell_traces[int(str(note["index"]))], note)
+        for note in notes
+        if note.get("index") is not None and int(str(note["index"])) in cell_traces
+    ]
+
+
 def load_readings(chunks: list[TraceChunk], readings_dir: Path) -> dict[TraceKey, Reading]:
-    """Every reader note, keyed like the traces, for every chunk that has a reading."""
+    """Every reader note, keyed like the traces, for every chunk that has a reading.
+
+    Per-chunk alignment first, because it is the stricter join and it is what
+    holds while nothing has re-chunked. Only a chunk that fails it falls back to
+    matching by index across its whole cell.
+    """
     readers = read_reader_models(readings_dir)
+    cells: dict[tuple[str, str], dict[int, Trace]] = {}
+    for chunk in chunks:
+        cells.setdefault(cell_of(chunk), {}).update({t.index: t for t in chunk.traces})
+
     readings: dict[TraceKey, Reading] = {}
     for chunk in chunks:
         if chunk.id not in readers:
             continue
-        for reading in load_chunk_reading(chunk, readings_dir, readers[chunk.id]).notes:
+        reader = readers[chunk.id]
+        try:
+            found = load_chunk_reading(chunk, readings_dir, reader).notes
+        except ValueError:
+            notes = json.loads((readings_dir / f"{chunk.id}.json").read_text(encoding="utf-8"))
+            found = tuple(
+                build_reading(chunk, reader, trace, note)
+                for trace, note in rescue_notes_across_cell(chunk, notes, cells[cell_of(chunk)])
+            )
+        for reading in found:
             readings[reading.key] = reading
     return readings

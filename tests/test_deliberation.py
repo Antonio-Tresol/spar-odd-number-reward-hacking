@@ -12,13 +12,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-from odd_number.deliberation import (  # noqa: E402
+from odd_number.traces import Trace  # noqa: E402
+from odd_number.visualisations.deliberation import (  # noqa: E402
     Deliberation,
     deliberation_figure,
     deliberation_of,
     tick_label,
 )
-from odd_number.traces import Trace  # noqa: E402
 
 ARM = "conflict-grader"
 

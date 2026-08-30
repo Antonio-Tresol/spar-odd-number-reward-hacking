@@ -15,7 +15,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from odd_number.readings import Reading  # noqa: E402
-from odd_number.tags import (  # noqa: E402
+from odd_number.traces import Trace  # noqa: E402
+from odd_number.visualisations.tags import (  # noqa: E402
     Batch,
     Tag,
     always_applied,
@@ -28,7 +29,6 @@ from odd_number.tags import (  # noqa: E402
     tag_bars_figure,
     traces_read,
 )
-from odd_number.traces import Trace  # noqa: E402
 
 FILE = "odd-number-qwen-qwen3.8-27b.jsonl"
 ARM = "conflict-grader"

@@ -30,9 +30,9 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from odd_number.figures import CAPTION_INK, CONFLICT_ARM, is_base_cell, short_model
 from odd_number.readings import Reading, TraceKey, trace_key
 from odd_number.traces import Trace
+from odd_number.visualisations.figures import CAPTION_INK, CONFLICT_ARM, is_base_cell, short_model
 
 TAG_INK: str = "#a3325c"
 

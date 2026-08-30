@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const TEMPLATE = path.join(__dirname, '..', 'src', 'odd_number', 'templates', 'odd-number-traces.html');
+const TEMPLATE = path.join(__dirname, '..', 'src', 'odd_number', 'visualisations', 'templates', 'odd-number-traces.html');
 const html = fs.readFileSync(TEMPLATE, 'utf8');
 
 // ---------- the script parses
@@ -99,7 +99,13 @@ assert.strictEqual(depth, 0, 'every <div> in the body must be closed exactly onc
 
 // The views are siblings inside <main>. If one nests inside another it can never be shown alone.
 const viewOrder = [...body.matchAll(/id="view-(\w+)"/g)].map(m => m[1]);
-assert.deepStrictEqual(viewOrder, ['landscape', 'traces', 'charts', 'findings', 'method']);
+assert.deepStrictEqual(viewOrder, ['landscape', 'traces', 'charts', 'commitment', 'interviews', 'findings', 'method']);
+
+// Every non-dialog entry in the rail must have a view to show, and every view a
+// button to reach it. A mismatch is a dead button or an unreachable panel.
+const railIds = [...behaviour.matchAll(/\{ id: '(\w+)', label: '[^']*', icon: '\w+'(, dialog: true)? \}/g)]
+  .filter(m => !m[2]).map(m => m[1]);
+assert.deepStrictEqual(railIds, viewOrder, 'the rail and the views must list the same ids in the same order');
 
 // An inline `display` beats even a `[hidden]` rule, so nothing toggled with the
 // hidden attribute may carry one.

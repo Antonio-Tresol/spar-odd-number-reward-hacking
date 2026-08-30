@@ -16,7 +16,8 @@ import pytest
 matplotlib.use("Agg")  # no display in CI, and none wanted: these assert on artists
 import matplotlib.pyplot as plt  # noqa: E402
 
-from odd_number.figures import (  # noqa: E402
+from odd_number.traces import Trace
+from odd_number.visualisations.figures import (  # noqa: E402
     AGREE_ARM,
     CAPTION_WRAP,
     CONFLICT_ARM,
@@ -33,7 +34,6 @@ from odd_number.figures import (  # noqa: E402
     resolution_floor,
     short_model,
 )
-from odd_number.traces import Trace
 
 
 def trace(

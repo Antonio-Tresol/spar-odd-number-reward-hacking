@@ -26,8 +26,8 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.ticker import PercentFormatter
 
-from odd_number.figures import CAPTION_INK, CONTROL_INK, ODD_INK
 from odd_number.grades import wilson_interval
+from odd_number.visualisations.figures import CAPTION_INK, CONTROL_INK, ODD_INK
 
 #: A branch point carrying fewer resamples than this is drawn hollow and left out
 #: of the line. Cells of one or two rows are leftovers from a coarser grid, and a

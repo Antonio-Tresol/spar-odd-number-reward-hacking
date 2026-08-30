@@ -11,7 +11,7 @@ import pytest
 
 matplotlib.use("Agg")
 
-from odd_number.branch_curves import (  # noqa: E402
+from odd_number.visualisations.branch_curves import (  # noqa: E402
     SOLID_TRIALS,
     BranchCurve,
     BranchRate,

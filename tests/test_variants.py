@@ -14,7 +14,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from odd_number.traces import Trace  # noqa: E402
-from odd_number.variants import (  # noqa: E402
+from odd_number.visualisations.variants import (  # noqa: E402
     DEFAULT_TOP_K,
     DEFAULT_TOP_P,
     Variant,

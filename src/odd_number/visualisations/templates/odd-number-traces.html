@@ -240,6 +240,40 @@ pre.trace mark.hl.focus { background: color-mix(in srgb, var(--accent) 28%, tran
 .empty b { display: block; font-size: 1.2rem; color: var(--ink); margin-bottom: 7px; }
 
 /* charts */
+/* Commitment: the trace read down the page with the resampled rate in the gaps. */
+.bpick { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.bpick button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 6px 13px; font-size: .84rem; cursor: pointer; }
+.bpick button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.bread { max-width: 78ch; margin: 20px auto 0; }
+.bsent { font-family: var(--read); font-size: 1.02rem; line-height: 1.72; margin: 0; padding: 3px 0 3px 44px; position: relative; color: var(--ink); }
+.bsent .bi { position: absolute; left: 0; top: 6px; font-family: var(--mono); font-size: .7rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.bsent.dim { color: var(--ink-muted); }
+.bmark { display: flex; align-items: center; gap: 10px; margin: 9px 0 9px 44px; padding: 7px 11px; border-radius: 8px; background: var(--sunken); border: 1px solid var(--line); }
+.bmark .rate { font-family: var(--mono); font-size: .95rem; font-variant-numeric: tabular-nums; font-weight: 600; min-width: 46px; text-align: right; }
+.bmark .bar { flex: 1; height: 7px; border-radius: 999px; background: var(--line); overflow: hidden; min-width: 60px; }
+.bmark .bar i { display: block; height: 100%; background: var(--odd); border-radius: 999px; }
+.bmark .cnt { font-family: var(--mono); font-size: .76rem; color: var(--ink-muted); white-space: nowrap; }
+.bmark .alt { font-size: .76rem; color: var(--ink-muted); white-space: nowrap; border-left: 1px solid var(--line-strong); padding-left: 10px; }
+.bmark.thin { opacity: .62; }
+.bmark.zero { background: var(--accent-soft); border-color: var(--accent); }
+.bhead { display: flex; align-items: baseline; gap: 10px; margin: 26px 0 4px; }
+.bhead h2 { font-size: 1rem; }
+
+/* Interviews: a transcript, both sides of it. */
+.ivturn { max-width: 82ch; margin: 0 0 14px; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); }
+.ivturn .who { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted); font-weight: 600; margin-bottom: 6px; }
+.ivturn .body { font-family: var(--read); font-size: .98rem; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ivturn.q { background: var(--accent-soft); border-color: var(--accent); }
+.ivturn.q .who { color: var(--accent); }
+.ivturn.obs { background: var(--sunken); border-style: dashed; }
+.ivturn.replay { border-color: var(--line-strong); }
+.ivturn .why { font-size: .8rem; color: var(--ink-muted); margin-top: 8px; line-height: 1.55; }
+.ivturn details { margin-top: 9px; }
+.ivturn details summary { font-size: .79rem; color: var(--ink-muted); cursor: pointer; }
+.ivturn details .body { margin-top: 8px; font-size: .9rem; color: var(--ink-muted); }
+.ivtag { display: inline-block; font-family: var(--mono); font-size: .72rem; background: var(--sunken); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; margin: 4px 4px 0 0; }
+.warnbox { max-width: 82ch; border-left: 3px solid var(--odd); background: var(--odd-soft); padding: 11px 14px; border-radius: 0 8px 8px 0; margin-bottom: 20px; font-size: .86rem; line-height: 1.6; }
+
 .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(430px, 1fr)); gap: 16px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
 .card h3 { font-size: .96rem; margin-bottom: 3px; }
@@ -395,6 +429,23 @@ dialog.notes .x:hover { color: var(--ink); }
       <div class="charts" id="charts"></div>
     </div>
 
+    <div class="view pad" id="view-commitment">
+      <h1>Where the answer gets decided</h1>
+      <p class="lede">Cut a real trace short, let the model finish it again 30 times, and count how often it lands on an odd number. Do that at many cut points and you can watch the answer become inevitable. Read down the page: the bands are the cuts.</p>
+      <div class="bpick" id="branch-picker"></div>
+      <div class="stats" id="branch-stats"></div>
+      <div class="card" id="branch-chart"></div>
+      <div class="bread" id="branch-read"></div>
+    </div>
+
+    <div class="view pad" id="view-interviews">
+      <h1>Interviews</h1>
+      <p class="lede">A finished rollout resumed as a conversation. The original prompt and the answer the model gave are replayed as the first two turns; everything after is a question put to the same pinned endpoint.</p>
+      <div class="warnbox" id="iv-warn"></div>
+      <div class="bpick" id="iv-picker"></div>
+      <div id="iv-body"></div>
+    </div>
+
     <div class="view pad" id="view-findings">
       <h1>Findings</h1>
       <p class="lede">Ten places to start, and the per-model syntheses written over every chunk reading.</p>
@@ -438,6 +489,7 @@ dialog.notes .x:hover { color: var(--ink); }
 (function () {
   const DATA = JSON.parse(document.getElementById('data').textContent);
   const T = DATA.traces, CELLS = DATA.cells, SYN = DATA.syntheses;
+  const BRANCHES = DATA.branches || [], INTERVIEWS = DATA.interviews || [];
   const key = t => `${t.file}|${t.treatment}|${t.index}`;
   const byKey = new Map(T.map(t => [key(t), t]));
   const byId = new Map(T.map(t => [t.id, t]));
@@ -454,6 +506,8 @@ dialog.notes .x:hover { color: var(--ink); }
     bulb: '<path d="M9.3 17.5h5.4"/><path d="M10 20.5h4"/><path d="M12 3.5a5.6 5.6 0 0 1 3.4 10c-.4.3-.6.8-.6 1.3v.4H9.2v-.4c0-.5-.2-1-.6-1.3A5.6 5.6 0 0 1 12 3.5Z"/>',
     help: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.9.8c0 1.7-2.5 2.5-2.5 2.5"/><circle cx="12" cy="16.6" r=".9" fill="currentColor" stroke="none"/>',
     right: '<polyline points="9.5 5 16.5 12 9.5 19"/>',
+    branch: '<path d="M6 20.5V9a3 3 0 0 1 3-3h4"/><circle cx="6" cy="21.5" r="1.6"/><circle cx="6" cy="3.6" r="1.6"/><path d="M6 5.2v2"/><circle cx="16.5" cy="6" r="1.8"/><path d="M18.3 6h2.2"/>',
+    talk: '<path d="M20.5 12.6c0 3.4-3.8 6.2-8.5 6.2a10 10 0 0 1-2.4-.3l-5.1 2 1.5-3.7a5.9 5.9 0 0 1-2-4.2c0-3.4 3.8-6.2 8.5-6.2s8 2.8 8 6.2Z"/>',
     panel: '<rect x="3.5" y="4.2" width="17" height="15.6" rx="3"/><line x1="9.6" y1="4.2" x2="9.6" y2="19.8"/>',
     expand: '<polyline points="9.5 4.5 4.5 4.5 4.5 9.5"/><polyline points="14.5 4.5 19.5 4.5 19.5 9.5"/><polyline points="14.5 19.5 19.5 19.5 19.5 14.5"/><polyline points="9.5 19.5 4.5 19.5 4.5 14.5"/>',
     check: '<circle cx="12" cy="12" r="8.5"/><path d="M8 12.5l2.7 2.7L16 9.8"/>',
@@ -841,6 +895,8 @@ dialog.notes .x:hover { color: var(--ink); }
     { id: 'landscape', label: 'Landscape', icon: 'grid' },
     { id: 'traces', label: 'Traces', icon: 'list' },
     { id: 'charts', label: 'Charts', icon: 'chart' },
+    { id: 'commitment', label: 'Commitment', icon: 'branch' },
+    { id: 'interviews', label: 'Interviews', icon: 'talk' },
     { id: 'findings', label: 'Findings', icon: 'bulb' },
     { id: 'notes', label: 'Your notes', icon: 'pencil', dialog: true },
     { id: 'method', label: 'How this was read', icon: 'help' },
@@ -873,6 +929,8 @@ dialog.notes .x:hover { color: var(--ink); }
     VIEWS.filter(v => !v.dialog).forEach(v => { const node = el('view-' + v.id); if (node) node.hidden = v.id !== id; });
     els.rail.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-current', String(b.dataset.view === id)));
     if (id === 'charts') renderCharts();
+    if (id === 'commitment') renderCommitment();
+    if (id === 'interviews') renderInterviews();
     if (id === 'findings') renderFindings();
     if (id === 'traces') scheduleLayout();
     applyFocus();
@@ -1270,6 +1328,135 @@ dialog.notes .x:hover { color: var(--ink); }
       labelChart(matches),
       byModel.length > 1 ? intervalChart(byModel, `Which models do it under ${esc(targetTreatment)}?`, 'Hollow dots never did it once. Their intervals still reach about 9%, which is what n=40 buys you.', 'var(--odd)') : '',
     ].filter(Boolean).join('');
+  }
+
+  // ---------- commitment (branch resampling)
+  // A sweep, and the sweep of the same trace under another prompt. That pair is
+  // the whole cross-prompt result, so one band shows both.
+  const companionOf = c => BRANCHES.find(o => o !== c && o.id.startsWith(c.id + '-under-'));
+  const baseSweeps = () => BRANCHES.filter(c => !/-under-/.test(c.id));
+  const sweepLabel = c => `Trace ${c.source_index}, answered ${c.source_answer}`;
+  const SOLID = 30;
+
+  function branchCurveSvg(curve, companion) {
+    const total = curve.sentences.length;
+    const W = 720, H = 250, L = 46, R = 14, TOP = 14, B = 34;
+    const x = k => L + (W - L - R) * (total ? k / total : 0);
+    const y = r => TOP + (H - TOP - B) * (1 - r);
+    const series = (c, ink, dash) => {
+      const pts = c.points.filter(pt => pt.n >= SOLID);
+      const line = pts.map((pt, i) => `${i ? 'L' : 'M'}${x(pt.kept).toFixed(1)} ${y(pt.odd / pt.n).toFixed(1)}`).join(' ');
+      const dots = c.points.map(pt => {
+        const solid = pt.n >= SOLID;
+        return `<circle cx="${x(pt.kept).toFixed(1)}" cy="${y(pt.odd / pt.n).toFixed(1)}" r="${solid ? 3.6 : 2.6}" fill="${solid ? ink : 'var(--surface)'}" stroke="${ink}" stroke-width="1.5"><title>after sentence ${pt.kept - 1}: ${pt.odd} of ${pt.n} odd</title></circle>`;
+      }).join('');
+      return `<path d="${line}" fill="none" stroke="${ink}" stroke-width="2" ${dash ? 'stroke-dasharray="5 4"' : ''}/>${dots}`;
+    };
+    const grid = [0, .25, .5, .75, 1].map(r =>
+      `<line x1="${L}" y1="${y(r)}" x2="${W - R}" y2="${y(r)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 7}" y="${y(r) + 4}" text-anchor="end" font-size="11" fill="var(--ink-faint)">${Math.round(r * 100)}%</text>`).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="P(odd) against how much of the trace is kept">
+      ${grid}
+      <text x="${L}" y="${H - 8}" font-size="11" fill="var(--ink-faint)">0 sentences kept</text>
+      <text x="${W - R}" y="${H - 8}" font-size="11" text-anchor="end" fill="var(--ink-faint)">${total} (the whole trace)</text>
+      ${companion ? series(companion, 'var(--accent)', true) : ''}
+      ${series(curve, 'var(--odd)', false)}
+    </svg>
+    <p class="note-l" style="margin-top:10px">Filled dots are cells with the full 30 resamples. Hollow dots have fewer and should not be read as a rate.${companion ? ' The dashed indigo line is the same trace continued under the affirming prompt.' : ''}</p>`;
+  }
+
+  function branchMark(pt, alt) {
+    const r = pt.odd / pt.n;
+    const where = pt.kept === 0 ? 'Before the model has written anything' : `After sentence ${pt.kept - 1}`;
+    const plain = pt.kept === 0
+      ? `From the prompt alone, ${pt.odd} of ${pt.n} answer odd.`
+      : `Stop here, let it finish ${pt.n} times: ${pt.odd} answer odd.`;
+    return `<div class="bmark ${pt.n < SOLID ? 'thin' : ''} ${pt.kept === 0 ? 'zero' : ''}" title="${esc(where)}. ${esc(plain)}">
+      <span class="rate" style="color:var(--odd)">${Math.round(r * 100)}%</span>
+      <span class="bar"><i style="width:${(r * 100).toFixed(1)}%"></i></span>
+      <span class="cnt">${pt.odd} of ${pt.n} finish odd${pt.n < SOLID ? ' (thin cell)' : ''}</span>
+      ${alt ? `<span class="alt">affirming prompt: ${alt.odd} of ${alt.n}, ${Math.round(100 * alt.odd / alt.n)}%</span>` : ''}
+    </div>`;
+  }
+
+  function renderCommitment() {
+    const host = el('branch-read'), pick = el('branch-picker'), stats = el('branch-stats'), chart = el('branch-chart');
+    if (!BRANCHES.length) {
+      pick.innerHTML = ''; chart.innerHTML = ''; stats.innerHTML = '';
+      host.innerHTML = '<div class="card"><p class="note-l">No sweeps have been run into <code>results/branches/</code>.</p></div>';
+      return;
+    }
+    const sweeps = baseSweeps();
+    if (!S.sweep || !sweeps.some(c => c.id === S.sweep)) S.sweep = sweeps[0].id;
+    const curve = sweeps.find(c => c.id === S.sweep), companion = companionOf(curve);
+
+    pick.innerHTML = sweeps.map(c => `<button data-sweep="${esc(c.id)}" aria-pressed="${c.id === S.sweep}">${esc(sweepLabel(c))}, ${c.sentences.length} sentences</button>`).join('');
+    pick.querySelectorAll('[data-sweep]').forEach(b => b.onclick = () => { S.sweep = b.dataset.sweep; renderCommitment(); writeHash(); });
+
+    const zero = curve.points.find(pt => pt.kept === 0);
+    const last = curve.points[curve.points.length - 1];
+    const firstFull = curve.points.filter(pt => pt.n >= SOLID).find(pt => pt.odd === pt.n);
+    stats.innerHTML = [
+      `<div class="stat"><div class="big">${zero ? Math.round(100 * zero.odd / zero.n) : 0}%</div><div class="lbl">from the prompt alone${zero ? `, ${zero.odd} of ${zero.n}` : ''}</div></div>`,
+      `<div class="stat"><div class="big">${Math.round(100 * last.odd / last.n)}%</div><div class="lbl">holding every sentence, so it only has to answer</div></div>`,
+      `<div class="stat"><div class="big">${curve.points.length}</div><div class="lbl">cut points, ${curve.points.reduce((a, pt) => a + pt.n, 0)} resamples</div></div>`,
+      firstFull ? `<div class="stat"><div class="big">${firstFull.kept - 1}</div><div class="lbl">first sentence after which every resample answered odd</div></div>` : '',
+    ].filter(Boolean).join('');
+
+    chart.innerHTML = `<h3>P(odd) as more of the trace is held</h3>
+      <p class="note-l">The source trace answered <b>${curve.source_answer}</b>. Each dot is one cut point.</p>
+      ${branchCurveSvg(curve, companion)}`;
+
+    const byAfter = new Map(curve.points.map(pt => [pt.after_index, pt]));
+    const altAfter = new Map((companion ? companion.points : []).map(pt => [pt.after_index, pt]));
+    const total = curve.sentences.length;
+    const lastMarked = Math.max(...curve.points.map(pt => pt.after_index));
+    const limit = Math.min(total, lastMarked + 4);
+    const shown = [];
+    if (byAfter.has(-1)) shown.push(branchMark(byAfter.get(-1), altAfter.get(-1)));
+    for (let i = 0; i < limit; i++) {
+      shown.push(`<p class="bsent"><span class="bi">${i}</span>${esc(curve.sentences[i].trim())}</p>`);
+      if (byAfter.has(i)) shown.push(branchMark(byAfter.get(i), altAfter.get(i)));
+    }
+    if (limit < total) shown.push(`<p class="help" style="margin:16px 0 0">The remaining ${total - limit} sentences carry no further cut point.</p>`);
+    host.innerHTML = `<div class="bhead"><h2>The trace, with the cuts in place</h2></div>
+      <p class="help" style="margin-bottom:14px">A cut after sentence <i>k</i> keeps sentences 0 to <i>k</i>. Everything below it was written fresh, 30 times over.</p>` + shown.join('');
+  }
+
+  // ---------- interviews
+  const IV_ROLE = { replayed: 'Replayed from the original rollout', question: 'Interviewer', answer: 'The model', observation: 'Interviewer note' };
+
+  function interviewTurn(turn) {
+    const cls = turn.kind === 'question' ? 'q' : turn.kind === 'observation' ? 'obs' : turn.kind === 'replayed' ? 'replay' : '';
+    return `<div class="ivturn ${cls}">
+      <div class="who">${IV_ROLE[turn.kind] || esc(turn.kind)}${turn.kind === 'observation' && turn.observes_turn != null ? ` on turn ${esc(turn.observes_turn)}` : ''}</div>
+      <div class="body">${esc(turn.content)}</div>
+      ${turn.rationale ? `<div class="why"><b>Why this was asked:</b> ${esc(turn.rationale)}</div>` : ''}
+      ${turn.quotes.length ? `<div class="why"><b>Quoted:</b> ${turn.quotes.map(q => `&ldquo;${esc(q)}&rdquo;`).join(' ')}</div>` : ''}
+      ${turn.tags.length ? `<div>${turn.tags.map(g => `<span class="ivtag">${esc(g)}</span>`).join('')}</div>` : ''}
+      ${turn.reasoning ? `<details><summary>Its chain of thought for this turn, ${turn.reasoning.length.toLocaleString()} characters</summary><div class="body">${esc(turn.reasoning)}</div></details>` : ''}
+    </div>`;
+  }
+
+  function renderInterviews() {
+    const pick = el('iv-picker'), body = el('iv-body'), warn = el('iv-warn');
+    warn.innerHTML = 'What a model says about why it did something is not evidence that it did it for that reason. These sessions are here to generate hypotheses, which then have to be tested against the environment. The resampling under <b>Commitment</b> is that kind of test. This is not.';
+    if (!INTERVIEWS.length) {
+      pick.innerHTML = '';
+      body.innerHTML = '<div class="card"><p class="note-l">No interviews have been run into <code>results/interviews/</code>.</p></div>';
+      return;
+    }
+    if (!S.iv || !INTERVIEWS.some(v => v.session === S.iv)) S.iv = INTERVIEWS[0].session;
+    const iv = INTERVIEWS.find(v => v.session === S.iv);
+    pick.innerHTML = INTERVIEWS.map(v => `<button data-iv="${esc(v.session)}" aria-pressed="${v.session === S.iv}">${esc(v.session)}, answered ${esc(v.seed_number)}</button>`).join('');
+    pick.querySelectorAll('[data-iv]').forEach(b => b.onclick = () => { S.iv = b.dataset.iv; renderInterviews(); writeHash(); });
+    const asked = iv.turns.filter(x => x.kind === 'question').length;
+    body.innerHTML = `<div class="stats">
+        <div class="stat"><div class="big">${asked}</div><div class="lbl">questions put to it</div></div>
+        <div class="stat"><div class="big" style="color:var(--${iv.seed_parity === 'odd' ? 'odd' : 'even'})">${esc(iv.seed_number)}</div><div class="lbl">what the rollout had answered</div></div>
+        <div class="stat"><div class="big">$${iv.cost_usd.toFixed(2)}</div><div class="lbl">cost of the session</div></div>
+      </div>
+      <p class="help" style="max-width:82ch;margin-bottom:16px">${esc(short(iv.model))}, ${esc(iv.treatment)}, trace #${iv.index} of <code>${esc(iv.source_file)}</code>. Interviewer: ${esc(iv.interviewer || 'unrecorded')}.</p>
+      ${iv.turns.map(interviewTurn).join('')}`;
   }
 
   // ---------- findings

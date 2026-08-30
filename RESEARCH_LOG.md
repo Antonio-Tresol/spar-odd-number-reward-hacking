@@ -82,6 +82,40 @@ Entry format:
   lists, Kimi K3 as a second branch model, the per-sentence sweep across
   sentences [21] to [42], and the paraphrase gaps.
 
+### Addendum, 2026-08-29 — two views for what was already measured, and a package for the code that draws
+
+* What I did: Added a **Commitment** view and an **Interviews** view to the trace
+  explainer, and moved every module that draws into
+  `src/odd_number/visualisations/`. Commitment reads the branch sweeps: the curve
+  for a chosen trace, then the trace itself down the page with the resampled rate
+  sitting in the gap after each sentence a prefix ends at. Interviews renders the
+  four sessions, which had no view at all, with both sides of every turn.
+
+* What I expected vs what happened: The build broke, and on something I had done
+  earlier the same day. Committing three new p1 rollouts re-chunked that results
+  file, because `chunk_traces` splits on a character budget, and the reader notes
+  are aligned per chunk. Thirteen notes met eleven traces and `align_notes`
+  refused, correctly. The fix is that a note's identity is its file, treatment and
+  index, never the chunk it happened to be written in, so `load_readings` now
+  falls back to matching across the whole cell when the per-chunk join fails.
+  Strict first, so nothing that works today changes. This will recur every time a
+  results file grows, which is the argument for the fallback rather than a
+  re-read.
+
+* What this changes about my thinking: The 83% number is the one Antonio asked to
+  see, and putting it in place did more than display it. On screen the band sits
+  directly above sentences [32] to [36], where the trace argues for the *even*
+  answer, and the same band carries the affirming prompt's 8 of 28 beside the
+  plain prompt's 25 of 30. Three results that were three tables are one thing you
+  read downward. The move into `visualisations/` also made a dependency rule
+  explicit and checkable: that package imports from `odd_number` and never the
+  reverse, with `cli.py` the only module allowed to reach down into it, so nothing
+  that measures can import something that draws.
+
+* What I will do next: Antonio writes the deliverable. Unchanged otherwise: no
+  `falsify` pass has run, every node is `unvalidated`, and the paraphrase agree
+  arms are still uncollected.
+
 ### Addendum, 2026-08-29 — which resampling method Q1.H8 actually implements
 
 * What I did: Read both resampling papers in full, which nothing in this project

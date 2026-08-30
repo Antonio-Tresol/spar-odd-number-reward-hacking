@@ -22,8 +22,12 @@ from typing import Any
 
 import markdown
 
+from odd_number.answers import read_answer_literally
+from odd_number.branches import find_source_rollout, split_sentences
 from odd_number.readings import Reading, TraceKey, load_readings, trace_key
+from odd_number.rollouts import read_rollouts
 from odd_number.traces import Trace, chunk_traces, load_traces
+from odd_number.visualisations.branch_curves import read_branch_curve
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 TRACE_EXPLAINER_TEMPLATE = TEMPLATE_DIR / "odd-number-traces.html"
@@ -151,8 +155,107 @@ def describe_cells(traces: list[Trace], readings: dict[TraceKey, Reading]) -> li
     return cells
 
 
+def describe_branch_curve(path: Path, results_dir: Path) -> dict[str, Any]:
+    """One sweep: its source trace split into sentences, and the rate at each cut.
+
+    The whole point of this view is reading the trace and watching the rate move,
+    so the sentences travel with the curve rather than being looked up later.
+
+    `sentences_kept = k` holds indices 0 to k-1, so a rate belongs in the gap
+    *after* index k-1. That is computed here, once, because reading it as "the
+    rate at sentence k" is the off-by-one that already put one claim in this
+    project a sentence late. `after_index` of -1 is the empty prefix: the model
+    answering from the prompt with none of its own reasoning.
+
+    Resamples themselves are not carried. There are 1,529 of them across the
+    sweeps and nothing in the page reads one, so only the counts travel.
+    """
+    curve = read_branch_curve(path, path.stem)
+    rows = read_rollouts(path)
+    first = rows[0]
+    source = find_source_rollout(
+        results_dir / first["source_file"], first["treatment"], int(first["source_index"])
+    )
+    return {
+        "id": path.stem,
+        "source_file": first["source_file"],
+        "source_index": int(first["source_index"]),
+        "source_parity": first["source_parity"],
+        "source_answer": read_answer_literally(source.get("response") or "").number,
+        "prompt": source.get("prompt") or "",
+        "sentences": split_sentences(source.get("reasoning") or ""),
+        "points": [
+            {
+                "kept": rate.sentences_kept,
+                "after_index": rate.sentences_kept - 1,
+                "chars": rate.prefix_chars,
+                "n": rate.trials,
+                "odd": rate.odd,
+            }
+            for rate in curve.rates
+        ],
+    }
+
+
+def describe_branch_curves(branches_dir: Path, results_dir: Path) -> list[dict[str, Any]]:
+    """Every sweep on disk, or nothing if none has been run."""
+    if not branches_dir.is_dir():
+        return []
+    return [describe_branch_curve(p, results_dir) for p in sorted(branches_dir.glob("*.jsonl"))]
+
+
+def describe_interview(path: Path) -> dict[str, Any]:
+    """One interview session: the replayed rollout, then every turn in order.
+
+    Both sides are carried, which is the point of the record: the model's answer
+    and its chain of thought, and the interviewer's reason for asking and note on
+    the reply. Reading only the answers would be reading a self-report as if it
+    were evidence, which `notes/interview-protocol.md` exists to prevent.
+    """
+    rows = [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    head = rows[0]
+    return {
+        "session": head["session"],
+        "model": head["model"],
+        "source_file": head["source_file"],
+        "treatment": head["treatment"],
+        "index": int(head["index"]),
+        "seed_number": head.get("seed_number"),
+        "seed_parity": head.get("seed_parity"),
+        "interviewer": head.get("interviewer"),
+        "cost_usd": round(sum(float(r.get("cost_usd") or 0) for r in rows), 4),
+        "turns": [
+            {
+                "turn": int(row["turn"]),
+                "role": row["role"],
+                "kind": row["kind"],
+                "content": row.get("content") or "",
+                "reasoning": row.get("reasoning") or "",
+                "rationale": row.get("rationale") or "",
+                "quotes": list(row.get("quotes") or []),
+                "tags": list(row.get("tags") or []),
+                "observes_turn": row.get("observes_turn"),
+            }
+            for row in rows
+        ],
+    }
+
+
+def describe_interviews(interviews_dir: Path) -> list[dict[str, Any]]:
+    """Every interview session on disk, or nothing if none has been run."""
+    if not interviews_dir.is_dir():
+        return []
+    return [describe_interview(p) for p in sorted(interviews_dir.glob("*.jsonl"))]
+
+
 def build_trace_explainer_data(
-    results_dir: Path, readings_dir: Path, syntheses_dir: Path
+    results_dir: Path,
+    readings_dir: Path,
+    syntheses_dir: Path,
+    branches_dir: Path,
+    interviews_dir: Path,
 ) -> dict[str, Any]:
     traces = load_traces(results_dir)
     readings = load_readings(chunk_traces(traces), readings_dir)
@@ -160,6 +263,8 @@ def build_trace_explainer_data(
         "traces": [describe_trace(t, readings.get(trace_key(t))) for t in traces],
         "cells": describe_cells(traces, readings),
         "syntheses": {s.model: asdict(s) for s in load_syntheses(readings_dir, syntheses_dir)},
+        "branches": describe_branch_curves(branches_dir, results_dir),
+        "interviews": describe_interviews(interviews_dir),
     }
 
 
@@ -178,12 +283,25 @@ def build_trace_explainer(
     syntheses_dir: Path,
     out: Path,
     template: Path = TRACE_EXPLAINER_TEMPLATE,
+    branches_dir: Path | None = None,
+    interviews_dir: Path | None = None,
 ) -> Path:
-    """Write the trace explainer page and return its path."""
+    """Write the trace explainer page and return its path.
+
+    `branches_dir` and `interviews_dir` default to their places under
+    `results_dir`, and a missing one yields an empty section rather than an
+    error: a checkout that has run neither still builds a page.
+    """
     page = template.read_text(encoding="utf-8")
     if page.count(DATA_MARKER) != 1:
         raise ValueError(f"{template} must contain {DATA_MARKER} exactly once")
-    data = build_trace_explainer_data(results_dir, readings_dir, syntheses_dir)
+    data = build_trace_explainer_data(
+        results_dir,
+        readings_dir,
+        syntheses_dir,
+        branches_dir if branches_dir is not None else results_dir / "branches",
+        interviews_dir if interviews_dir is not None else results_dir / "interviews",
+    )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(page.replace(DATA_MARKER, embed_json(data)), encoding="utf-8")
     return out

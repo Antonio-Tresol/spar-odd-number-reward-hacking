@@ -27,10 +27,10 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.ticker import PercentFormatter
 
-from odd_number.figures import CAPTION_INK, short_model
 from odd_number.grades import wilson_interval
 from odd_number.rollouts import read_rollouts
 from odd_number.traces import Trace
+from odd_number.visualisations.figures import CAPTION_INK, short_model
 
 #: The sampling every cell uses unless it was re-run to test the sampling itself.
 DEFAULT_TOP_P: float = 1.0

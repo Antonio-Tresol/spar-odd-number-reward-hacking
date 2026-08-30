@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from odd_number.explainers import DATA_MARKER, build_trace_explainer, embed_json
+from odd_number.visualisations.explainers import DATA_MARKER, build_trace_explainer, embed_json
 
 
 def test_embedded_json_cannot_close_the_script_block() -> None:

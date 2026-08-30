@@ -41,7 +41,6 @@ from odd_number.answers import (
     read_fixtures,
     validate_judge,
 )
-from odd_number.branch_curves import branch_curve_figure, read_branch_curve
 from odd_number.branches import (
     Resampler,
     ResampleRequest,
@@ -63,8 +62,6 @@ from odd_number.environment import (
     baseline_treatments,
     build_prompt,
 )
-from odd_number.explainers import build_trace_explainer
-from odd_number.figures import AGREE_ARM, CONFLICT_ARM, gaming_rate_figure, gaming_rates
 from odd_number.grades import classify_parity, grade_records, summarise_by_treatment
 from odd_number.interviews import (
     SEED_REASONING_MODES,
@@ -105,6 +102,14 @@ from odd_number.rollouts import (
 from odd_number.sampling import DEFAULT_SAMPLING, SamplingParams
 from odd_number.settings import PROJECT_ROOT, MissingSettingsError, Settings, load_settings
 from odd_number.traces import DEFAULT_MAX_CHARS, export_trace_chunks, load_traces, skipped_files
+from odd_number.visualisations.branch_curves import branch_curve_figure, read_branch_curve
+from odd_number.visualisations.explainers import build_trace_explainer
+from odd_number.visualisations.figures import (
+    AGREE_ARM,
+    CONFLICT_ARM,
+    gaming_rate_figure,
+    gaming_rates,
+)
 
 # Errors in a row before giving up. A bad key or model name fails identically
 # every time, and burning the full budget to prove it is an expensive way to
