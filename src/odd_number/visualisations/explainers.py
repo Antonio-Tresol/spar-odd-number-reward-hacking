@@ -26,7 +26,7 @@ from odd_number.answers import read_answer_literally
 from odd_number.branches import find_source_rollout, split_sentences
 from odd_number.readings import Reading, TraceKey, load_readings, trace_key
 from odd_number.rollouts import read_rollouts
-from odd_number.traces import Trace, chunk_traces, load_traces
+from odd_number.traces import Trace, chunk_traces, file_stem, load_traces
 from odd_number.visualisations.branch_curves import read_branch_curve
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -180,6 +180,12 @@ def describe_branch_curve(path: Path, results_dir: Path) -> dict[str, Any]:
         "id": path.stem,
         "source_file": first["source_file"],
         "source_index": int(first["source_index"]),
+        # The id `Trace.id` gives the same rollout in the Traces view. The page
+        # annotates against it, so a note written on a sentence here is the same
+        # note the trace reader shows, not a second one about the same words.
+        "source_trace_id": (
+            f"{file_stem(first['source_file'])}--{first['treatment']}--{int(first['source_index'])}"
+        ),
         "source_parity": first["source_parity"],
         "source_answer": read_answer_literally(source.get("response") or "").number,
         "prompt": source.get("prompt") or "",

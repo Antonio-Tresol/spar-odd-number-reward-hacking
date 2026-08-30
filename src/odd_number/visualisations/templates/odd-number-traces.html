@@ -244,7 +244,9 @@ pre.trace mark.hl.focus { background: color-mix(in srgb, var(--accent) 28%, tran
 .bpick { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
 .bpick button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 6px 13px; font-size: .84rem; cursor: pointer; }
 .bpick button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.bread { max-width: 78ch; margin: 20px auto 0; }
+.bread { margin-top: 20px; }
+.bsent .btx { display: inline; }
+.ivscroll { display: flex; flex-direction: column; }
 .bsent { font-family: var(--read); font-size: 1.02rem; line-height: 1.72; margin: 0; padding: 3px 0 3px 44px; position: relative; color: var(--ink); }
 .bsent .bi { position: absolute; left: 0; top: 6px; font-family: var(--mono); font-size: .7rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
 .bsent.dim { color: var(--ink-muted); }
@@ -613,9 +615,15 @@ dialog.notes .x:hover { color: var(--ink); }
       list.innerHTML = ids.map(id => {
         const t = byId.get(id), n2 = NOTES.traces[id];
         const first = String(n2.text || '').trim() || (n2.marks || []).map(m => m.note).find(x => String(x || '').trim()) || (noteWritten(n2) ? `${(n2.marks || []).length} highlight${(n2.marks || []).length === 1 ? '' : 's'}` : 'marked read');
-        return `<button data-open-note="${esc(id)}"><span class="nid">${esc(t ? `${short(t.model)} #${t.index}` : id)}</span><span class="ntx">${esc(first)}</span></button>`;
+        const iv = id.startsWith('interview--') ? id.split('--') : null;
+        const label = t ? `${short(t.model)} #${t.index}` : iv ? `interview ${iv[1]}, turn ${iv[2]}` : id;
+        return `<button data-open-note="${esc(id)}"><span class="nid">${esc(label)}</span><span class="ntx">${esc(first)}</span></button>`;
       }).join('') || '<p class="help">No notes yet. Open a trace and select a passage.</p>';
-      list.querySelectorAll('[data-open-note]').forEach(b => b.addEventListener('click', () => { const t = byId.get(b.dataset.openNote); if (t) { el('notes-dialog').close(); go({ trace: key(t) }); } }));
+      list.querySelectorAll('[data-open-note]').forEach(b => b.addEventListener('click', () => {
+        const id = b.dataset.openNote, t = byId.get(id);
+        if (t) { el('notes-dialog').close(); go({ trace: key(t) }); return; }
+        if (id.startsWith('interview--')) { S.iv = id.split('--')[1]; el('notes-dialog').close(); showView('interviews'); }
+      }));
     }
   }
 
@@ -672,10 +680,21 @@ dialog.notes .x:hover { color: var(--ink); }
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed || !sel.rangeCount) return hideSelbar();
     const range = sel.getRangeAt(0), host = range.commonAncestorContainer;
-    const pre = (host.nodeType === 1 ? host : host.parentElement)?.closest('pre.trace[data-field]');
+    // Two kinds of annotatable text now. `pre.trace[data-field]` is the reader's,
+    // whose offsets are against the whole field. `[data-annot-field]` is any other
+    // block, and it carries `data-annot-base` when it shows only part of a field:
+    // one sentence of a trace is offset by where that sentence starts.
+    const pre = (host.nodeType === 1 ? host : host.parentElement)?.closest('pre.trace[data-field], [data-annot-field]');
     const quote = range.toString();
     if (!pre || quote.trim().length < 2) return hideSelbar();
-    pending = { field: pre.dataset.field, quote, start: offsetIn(pre, range.startContainer, range.startOffset) };
+    const scope = pre.closest('[data-annot-key]');
+    pending = {
+      field: pre.dataset.annotField || pre.dataset.field,
+      quote,
+      start: Number(pre.dataset.annotBase || 0) + offsetIn(pre, range.startContainer, range.startOffset),
+      key: scope ? scope.dataset.annotKey : null,
+      view: scope ? scope.dataset.annotView : null,
+    };
     const box = range.getBoundingClientRect();
     selbar.hidden = false;
     selbar.style.left = Math.round(Math.max(8, Math.min(window.innerWidth - selbar.offsetWidth - 8, box.left))) + 'px';
@@ -697,11 +716,52 @@ dialog.notes .x:hover { color: var(--ink); }
   });
 
   function addMark(p) {
-    const t = byKey.get(S.trace); if (!t) return;
-    const n = noteFor(t.id), id = 'm' + Date.now().toString(36) + Math.floor(Math.random() * 4096).toString(36);
+    // A commitment mark names the source trace's own id, so a note written while
+    // reading the curve is the same note the trace reader shows. One passage, one
+    // note, whichever view it was written in.
+    const key = p.key || byKey.get(S.trace)?.id; if (!key) return;
+    const n = noteFor(key), id = 'm' + Date.now().toString(36) + Math.floor(Math.random() * 4096).toString(36);
     n.marks.push({ id, field: p.field, start: p.start, quote: p.quote, note: '' });
-    touch(t.id); redrawTrace(t); focusMark(id);
+    touch(key);
+    if (p.view === 'commitment') renderCommitment();
+    else if (p.view === 'interviews') renderInterviews();
+    else { const t = byKey.get(S.trace); if (t) redrawTrace(t); }
+    focusMark(id);
   }
+
+  // Every view that shows marks wires the same three controls, so they are written
+  // once and bound by key from the DOM rather than closed over per view.
+  function bindNoteControls(root) {
+    root.querySelectorAll('[data-note-for]').forEach(ta => ta.addEventListener('input', () => {
+      const own = noteFor(ta.dataset.noteKey);
+      const m = (own.marks || []).find(x => x.id === ta.dataset.noteFor);
+      if (m) { m.note = ta.value; touch(ta.dataset.noteKey); scheduleLayout(); }
+    }));
+    root.querySelectorAll('[data-del-mark]').forEach(b => b.addEventListener('click', () => {
+      const own = noteFor(b.dataset.noteKey);
+      own.marks = (own.marks || []).filter(x => x.id !== b.dataset.delMark);
+      touch(b.dataset.noteKey);
+      if (b.dataset.rerender === 'commitment') renderCommitment(); else renderInterviews();
+    }));
+    root.querySelectorAll('mark.hl[data-mark]').forEach(mk => mk.addEventListener('click', () => focusMark(mk.dataset.mark)));
+  }
+
+  // The card the margin shows for one mark. `data-anchor` is what layoutNotes
+  // matches against the highlight, and `data-note-key` is what the handlers write to.
+  const annotCard = (m, key, where, view) =>
+    `<div class="note mine" id="mk-${esc(m.id)}" data-anchor="${esc(m.id)}">
+      <div class="q">${esc(m.quote.length > 220 ? m.quote.slice(0, 220) + '\u2026' : m.quote)}</div>
+      <textarea data-note-for="${esc(m.id)}" data-note-key="${esc(key)}" placeholder="what do you make of this passage?">${esc(m.note)}</textarea>
+      <div class="who">${icon('pencil', 12)}${esc(where)}<button data-del-mark="${esc(m.id)}" data-note-key="${esc(key)}" data-rerender="${esc(view)}" title="delete this highlight and its note">${icon('trash', 13)}</button></div>
+    </div>`;
+
+  // Marks resolved against the text they were taken from, newest last so the
+  // margin sweeps down in anchor order.
+  const placeMarks = (key, field, text) =>
+    ((noteOf(key) || {}).marks || [])
+      .filter(m => (m.field || 'reasoning') === field)
+      .map(m => ({ m, at: anchorAt(text, m) }))
+      .sort((a, b) => (a.at ? a.at[0] : 1e9) - (b.at ? b.at[0] : 1e9));
   // How the list is ordered. One definition, used both to sort the selection and to
   // work out where a trace that is *not* in the selection would sit if it were.
   function comparatorFor(sort) {
@@ -1152,16 +1212,22 @@ dialog.notes .x:hover { color: var(--ink); }
     notesObserver?.disconnect();
     if (typeof ResizeObserver === 'undefined') return;
     notesObserver = new ResizeObserver(scheduleLayout);
-    const split = els.readcol.querySelector('.split-read');
+    const split = document.querySelector('.view:not([hidden]) .split-read') || els.readcol.querySelector('.split-read');
     if (!split) return;
     notesObserver.observe(split.querySelector('.textcol'));
     split.querySelectorAll('.marginnotes .note').forEach(c => notesObserver.observe(c));
   }
+  // Every view that shows a margin, not only the reader's. A hidden view has no
+  // offsetParent and no useful rectangles, so it is skipped rather than laid out
+  // against zeroes.
   function layoutNotes() {
-    const split = els.readcol.querySelector('.split-read');
+    document.querySelectorAll('.split-read').forEach(layoutOneSplit);
+  }
+
+  function layoutOneSplit(split) {
     const holder = split?.querySelector('.marginnotes');
     const svg = split?.querySelector('.connectors');
-    if (!split || !holder || !svg) return;
+    if (!split || !holder || !svg || !split.offsetParent) return;
     // Too narrow for a margin: the cards stack under the trace in document order,
     // so clear the absolute positions this function set on a wider screen.
     if (window.matchMedia('(max-width: 1000px)').matches) {
@@ -1418,30 +1484,88 @@ dialog.notes .x:hover { color: var(--ink); }
     const total = curve.sentences.length;
     const lastMarked = Math.max(...curve.points.map(pt => pt.after_index));
     const limit = Math.min(total, lastMarked + 4);
+
+    // Offsets are against the whole chain of thought, because that is what the
+    // trace reader stores and this view writes into the very same note. The
+    // sentences rejoin to the reasoning exactly, so a running total is the offset.
+    const key = curve.source_trace_id;
+    const full = curve.sentences.join('');
+    const placed = placeMarks(key, 'reasoning', full);
+    const bases = [];
+    let running = 0;
+    for (const s of curve.sentences) { bases.push(running); running += s.length; }
+
     const shown = [];
     if (byAfter.has(-1)) shown.push(branchMark(byAfter.get(-1), altAfter.get(-1)));
     for (let i = 0; i < limit; i++) {
-      shown.push(`<p class="bsent"><span class="bi">${i}</span>${esc(curve.sentences[i].trim())}</p>`);
+      const raw = curve.sentences[i];
+      const lead = raw.length - raw.trimStart().length;
+      const text = raw.trim();
+      const from = bases[i] + lead, to = from + text.length;
+      const spans = placed
+        .filter(x => x.at && x.at[1] > from && x.at[0] < to)
+        .map(x => [Math.max(0, x.at[0] - from), Math.min(text.length, x.at[1] - from), 'hl', x.m.id]);
+      shown.push(`<p class="bsent"><span class="bi">${i}</span><span class="btx" data-annot-field="reasoning" data-annot-base="${from}">${renderMarked(text, spans)}</span></p>`);
       if (byAfter.has(i)) shown.push(branchMark(byAfter.get(i), altAfter.get(i)));
     }
     if (limit < total) shown.push(`<p class="help" style="margin:16px 0 0">The remaining ${total - limit} sentences carry no further cut point.</p>`);
-    host.innerHTML = `<div class="bhead"><h2>The trace, with the cuts in place</h2></div>
-      <p class="help" style="margin-bottom:14px">A cut after sentence <i>k</i> keeps sentences 0 to <i>k</i>. Everything below it was written fresh, 30 times over.</p>` + shown.join('');
+
+    const cards = placed.filter(x => x.at).map(x => annotCard(x.m, key, 'in the chain of thought', 'commitment')).join('');
+    const lost = placed.filter(x => !x.at);
+    const mine = noteOf(key);
+    host.innerHTML = `<div class="reader" data-annot-key="${esc(key)}" data-annot-view="commitment">
+      <div class="bhead"><h2>The trace, with the cuts in place</h2></div>
+      <p class="help" style="margin-bottom:14px">A cut after sentence <i>k</i> keeps sentences 0 to <i>k</i>. Everything below it was written fresh, 30 times over. Select any passage to pin a note to it; notes here are the same notes the trace reader shows for <code>${esc(key)}</code>.</p>
+      <div class="tracenote">
+        <div class="eyebrow">Your note on this trace</div>
+        <textarea id="commit-note" placeholder="What do you make of this one? Notes about a particular sentence go in the margin instead: select the words and pin one there.">${esc(mine?.text || '')}</textarea>
+      </div>
+      <div class="split-read" style="margin-top:16px">
+        <svg class="connectors" aria-hidden="true"></svg>
+        <div class="textcol">${shown.join('')}</div>
+        <div class="gutter${cards || lost.length ? '' : ' empty'}">
+          <div class="marginnotes" style="position:relative">${cards}</div>
+          ${lost.length ? `<div style="margin-top:12px">${lost.map(x => `<div class="note detached" id="mk-${esc(x.m.id)}"><div class="warn">${icon('warn', 13)} this passage is no longer in the trace</div><div class="q">${esc(x.m.quote.slice(0, 220))}</div><textarea data-note-for="${esc(x.m.id)}" data-note-key="${esc(key)}">${esc(x.m.note)}</textarea><div class="who">kept, but it has nowhere to point<button data-del-mark="${esc(x.m.id)}" data-note-key="${esc(key)}" data-rerender="commitment">${icon('trash', 13)}</button></div></div>`).join('')}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+    el('commit-note')?.addEventListener('input', ev => { noteFor(key).text = ev.target.value; touch(key); });
+    bindNoteControls(host);
+    observeLayout();
+    scheduleLayout();
   }
 
   // ---------- interviews
   const IV_ROLE = { replayed: 'Replayed from the original rollout', question: 'Interviewer', answer: 'The model', observation: 'Interviewer note' };
 
-  function interviewTurn(turn) {
+  const turnKey = (session, turn) => `interview--${session}--${turn}`;
+
+  function interviewTurn(turn, session) {
     const cls = turn.kind === 'question' ? 'q' : turn.kind === 'observation' ? 'obs' : turn.kind === 'replayed' ? 'replay' : '';
-    return `<div class="ivturn ${cls}">
+    const key = turnKey(session, turn.turn);
+    const body = placeMarks(key, 'content', turn.content);
+    const think = placeMarks(key, 'reasoning', turn.reasoning);
+    const spans = pl => pl.filter(x => x.at).map(x => [x.at[0], x.at[1], 'hl', x.m.id]);
+    return `<div class="ivturn ${cls}" data-annot-key="${esc(key)}" data-annot-view="interviews">
       <div class="who">${IV_ROLE[turn.kind] || esc(turn.kind)}${turn.kind === 'observation' && turn.observes_turn != null ? ` on turn ${esc(turn.observes_turn)}` : ''}</div>
-      <div class="body">${esc(turn.content)}</div>
+      <div class="body" data-annot-field="content">${renderMarked(turn.content, spans(body))}</div>
       ${turn.rationale ? `<div class="why"><b>Why this was asked:</b> ${esc(turn.rationale)}</div>` : ''}
       ${turn.quotes.length ? `<div class="why"><b>Quoted:</b> ${turn.quotes.map(q => `&ldquo;${esc(q)}&rdquo;`).join(' ')}</div>` : ''}
       ${turn.tags.length ? `<div>${turn.tags.map(g => `<span class="ivtag">${esc(g)}</span>`).join('')}</div>` : ''}
-      ${turn.reasoning ? `<details><summary>Its chain of thought for this turn, ${turn.reasoning.length.toLocaleString()} characters</summary><div class="body">${esc(turn.reasoning)}</div></details>` : ''}
+      ${turn.reasoning ? `<details${think.some(x => x.at) ? ' open' : ''}><summary>Its chain of thought for this turn, ${turn.reasoning.length.toLocaleString()} characters</summary><div class="body" data-annot-field="reasoning">${renderMarked(turn.reasoning, spans(think))}</div></details>` : ''}
     </div>`;
+  }
+
+  // One margin for the whole transcript rather than one per turn: the cards sweep
+  // down past every turn in anchor order, which is what layoutOneSplit already does.
+  function interviewCards(iv) {
+    return iv.turns.flatMap(turn => {
+      const key = turnKey(iv.session, turn.turn);
+      return [
+        ...placeMarks(key, 'content', turn.content).filter(x => x.at).map(x => annotCard(x.m, key, `turn ${turn.turn}`, 'interviews')),
+        ...placeMarks(key, 'reasoning', turn.reasoning).filter(x => x.at).map(x => annotCard(x.m, key, `turn ${turn.turn}, its reasoning`, 'interviews')),
+      ];
+    }).join('');
   }
 
   function renderInterviews() {
@@ -1457,13 +1581,21 @@ dialog.notes .x:hover { color: var(--ink); }
     pick.innerHTML = INTERVIEWS.map(v => `<button data-iv="${esc(v.session)}" aria-pressed="${v.session === S.iv}">${esc(v.session)}, answered ${esc(v.seed_number)}</button>`).join('');
     pick.querySelectorAll('[data-iv]').forEach(b => b.onclick = () => { S.iv = b.dataset.iv; renderInterviews(); writeHash(); });
     const asked = iv.turns.filter(x => x.kind === 'question').length;
+    const cards = interviewCards(iv);
     body.innerHTML = `<div class="stats">
         <div class="stat"><div class="big">${asked}</div><div class="lbl">questions put to it</div></div>
         <div class="stat"><div class="big" style="color:var(--${iv.seed_parity === 'odd' ? 'odd' : 'even'})">${esc(iv.seed_number)}</div><div class="lbl">what the rollout had answered</div></div>
         <div class="stat"><div class="big">$${iv.cost_usd.toFixed(2)}</div><div class="lbl">cost of the session</div></div>
       </div>
-      <p class="help" style="max-width:82ch;margin-bottom:16px">${esc(short(iv.model))}, ${esc(iv.treatment)}, trace #${iv.index} of <code>${esc(iv.source_file)}</code>. Interviewer: ${esc(iv.interviewer || 'unrecorded')}.</p>
-      ${iv.turns.map(interviewTurn).join('')}`;
+      <p class="help" style="max-width:82ch;margin-bottom:16px">${esc(short(iv.model))}, ${esc(iv.treatment)}, trace #${iv.index} of <code>${esc(iv.source_file)}</code>. Interviewer: ${esc(iv.interviewer || 'unrecorded')}. Select any passage to pin a note to it.</p>
+      <div class="split-read">
+        <svg class="connectors" aria-hidden="true"></svg>
+        <div class="textcol ivscroll">${iv.turns.map(turn => interviewTurn(turn, iv.session)).join('')}</div>
+        <div class="gutter${cards ? '' : ' empty'}"><div class="marginnotes" style="position:relative">${cards}</div></div>
+      </div>`;
+    bindNoteControls(body);
+    observeLayout();
+    scheduleLayout();
   }
 
   // ---------- findings

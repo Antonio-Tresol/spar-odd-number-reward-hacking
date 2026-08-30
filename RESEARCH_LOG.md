@@ -82,6 +82,39 @@ Entry format:
   lists, Kimi K3 as a second branch model, the per-sentence sweep across
   sentences [21] to [42], and the paraphrase gaps.
 
+### Addendum, 2026-08-29 — the new views can be annotated, and a note is one note
+
+* What I did: Made the commitment and interview views annotatable the way the
+  trace reader already was, at Antonio's request. Three generalisations rather
+  than a second annotation system: the selection bar now accepts any
+  `[data-annot-field]` block instead of only a trace `<pre>`, `addMark` writes to
+  a key the DOM names instead of only the open trace, and `layoutNotes` lays out
+  every `.split-read` on the page instead of only the reader's.
+
+* What I expected vs what happened: The commitment view turned out not to need a
+  key of its own. Its sentences *are* a trace's chain of thought, so a mark there
+  names that trace's own id and lands in the same note the reader shows. Verified
+  end to end: a passage highlighted while reading the curve appears in the trace
+  reader afterwards, in the margin, against the same words. One passage, one note,
+  whichever view it was written in. That also means offsets have to be against the
+  whole reasoning rather than the sentence, which `data-annot-base` carries, since
+  the sentences rejoin to the reasoning exactly and a running total gives the
+  offset. Interviews do need their own namespace, `interview--<session>--<turn>`,
+  which cannot collide with a trace id.
+
+* What this changes about my thinking: The store did not need a new shape, and
+  that was worth checking rather than assuming. Notes are keyed by an opaque
+  string and everything downstream already tolerated an id that is not a trace:
+  `refreshRowMark` returns early on an unknown id and the notes list falls back to
+  printing the raw key. So the saved file format is unchanged and an older file
+  still loads. Checked against the real one rather than a fixture, as the notes
+  themselves require: `notes/reader-notes.json` comes back with all four traces,
+  five marks on trace 6 all still anchored, none detached, and its note text
+  intact.
+
+* What I will do next: Antonio writes the deliverable. Unchanged: no `falsify`
+  pass, every node `unvalidated`, paraphrase agree arms uncollected.
+
 ### Addendum, 2026-08-29 — two views for what was already measured, and a package for the code that draws
 
 * What I did: Added a **Commitment** view and an **Interviews** view to the trace

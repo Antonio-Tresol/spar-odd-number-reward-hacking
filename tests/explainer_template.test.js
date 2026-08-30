@@ -113,6 +113,29 @@ for (const m of body.matchAll(/<[^>]*\shidden[\s>][^>]*>/g)) {
   assert.ok(!/style="[^"]*display\s*:/.test(m[0]), `inline display on a hidden element: ${m[0].slice(0, 90)}`);
 }
 
+// ---------- annotation reaches past the trace reader
+// Marks are stored per key. The commitment view names the *source trace's* key so
+// a note written against a sentence is the same note the reader shows, and the
+// interview view names a per-turn key. Both are read off the DOM, so the selector
+// and the two attributes have to stay in step.
+assert.ok(/closest\('pre\.trace\[data-field\], \[data-annot-field\]'\)/.test(behaviour),
+  'the selection bar must accept data-annot-field blocks as well as trace <pre>s');
+assert.ok(/dataset\.annotBase/.test(behaviour),
+  'a block showing part of a field must offset its marks by data-annot-base');
+assert.ok(/data-annot-key="\$\{esc\(key\)\}" data-annot-view="commitment"/.test(behaviour),
+  'commitment must annotate against the source trace key');
+assert.ok(/data-annot-key="\$\{esc\(key\)\}" data-annot-view="interviews"/.test(behaviour),
+  'each interview turn must carry its own annotation key');
+assert.ok(/const turnKey = \(session, turn\) => `interview--\$\{session\}--\$\{turn\}`/.test(behaviour),
+  'interview keys must be namespaced so they cannot collide with a trace id');
+
+// layoutNotes drives every margin on the page now, not only the reader's, and it
+// must skip hidden views: their rectangles are all zero.
+assert.ok(/document\.querySelectorAll\('\.split-read'\)\.forEach\(layoutOneSplit\)/.test(behaviour),
+  'layoutNotes must lay out every .split-read');
+assert.ok(/!split\.offsetParent/.test(behaviour),
+  'a hidden split must be skipped rather than laid out against zero rectangles');
+
 // ---------- the markup the notes and sampling code reaches for
 for (const id of ['railnav', 'crumbs', 'notes-dialog', 'notes-state', 'notes-save', 'notes-import', 'samplerow', 'btn-sample', 's-note', 'f-mine', 'copy-selection', 'charts']) {
   assert.ok(html.includes(`id="${id}"`), `the page must carry #${id}`);
