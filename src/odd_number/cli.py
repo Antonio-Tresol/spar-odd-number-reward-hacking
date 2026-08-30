@@ -110,6 +110,7 @@ from odd_number.visualisations.figures import (
     gaming_rate_figure,
     gaming_rates,
 )
+from odd_number.visualisations.prompt_rates import build_prompt_rates_figure
 
 # Errors in a row before giving up. A bad key or model name fails identically
 # every time, and burning the full budget to prove it is an expensive way to
@@ -765,6 +766,27 @@ def add_branch_figure_parser(sub: argparse._SubParsersAction) -> None:
     figure.add_argument("--caption", default="")
     figure.add_argument("--out", type=Path, default=PROJECT_ROOT / "figures" / "branch-curve.png")
     figure.set_defaults(func=cmd_branch_figure)
+
+    prompts = sub.add_parser(
+        "prompt-figure", help="plot one model's odd rate for every prompt it was sent"
+    )
+    prompts.add_argument("--model", default="qwen/qwen3.8-27b")
+    prompts.add_argument("--results-dir", type=Path, default=PROJECT_ROOT / "results")
+    prompts.add_argument(
+        "--out", type=Path, default=PROJECT_ROOT / "figures" / "qwen38-prompt-rates.png"
+    )
+    prompts.set_defaults(func=cmd_prompt_figure)
+
+
+def cmd_prompt_figure(args: argparse.Namespace) -> int:
+    """Draw one model's odd-answer rate for every prompt it was sent."""
+    try:
+        out = build_prompt_rates_figure(args.results_dir, args.model, args.out)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    print(f"{out} ({out.stat().st_size / 1e3:.0f} KB)")
+    return 0
 
 
 def add_branch_parser(sub: argparse._SubParsersAction) -> None:
