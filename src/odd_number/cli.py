@@ -55,6 +55,7 @@ from odd_number.branches import (
 from odd_number.branches import load_completed_keys as branch_completed_keys
 from odd_number.chat_templates import TemplateError, resolve_template
 from odd_number.client import build_client, build_http_client
+from odd_number.confusions import SONNET_LABELS
 from odd_number.environment import (
     DESCRIPTIONS,
     PARAPHRASES,
@@ -103,6 +104,7 @@ from odd_number.sampling import DEFAULT_SAMPLING, SamplingParams
 from odd_number.settings import PROJECT_ROOT, MissingSettingsError, Settings, load_settings
 from odd_number.traces import DEFAULT_MAX_CHARS, export_trace_chunks, load_traces, skipped_files
 from odd_number.visualisations.branch_curves import branch_curve_figure, read_branch_curve
+from odd_number.visualisations.confusion_counts import build_confusion_figure
 from odd_number.visualisations.explainers import build_trace_explainer
 from odd_number.visualisations.figures import (
     AGREE_ARM,
@@ -777,11 +779,38 @@ def add_branch_figure_parser(sub: argparse._SubParsersAction) -> None:
     )
     prompts.set_defaults(func=cmd_prompt_figure)
 
+    confusions = sub.add_parser(
+        "confusion-figure", help="plot what a model is unsure about, and the odd share of each"
+    )
+    confusions.add_argument("--model", default="qwen/qwen3.8-27b")
+    confusions.add_argument("--results-dir", type=Path, default=PROJECT_ROOT / "results")
+    confusions.add_argument(
+        "--labels",
+        type=Path,
+        default=PROJECT_ROOT / "results" / "confusion-labels" / SONNET_LABELS,
+    )
+    confusions.add_argument(
+        "--out", type=Path, default=PROJECT_ROOT / "figures" / "qwen38-confusions.png"
+    )
+    confusions.set_defaults(func=cmd_confusion_figure)
+
 
 def cmd_prompt_figure(args: argparse.Namespace) -> int:
     """Draw one model's odd-answer rate for every prompt it was sent."""
     try:
         out = build_prompt_rates_figure(args.results_dir, args.model, args.out)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    print(f"{out} ({out.stat().st_size / 1e3:.0f} KB)")
+    return 0
+
+
+def cmd_confusion_figure(args: argparse.Namespace) -> int:
+    """Draw how often each confusion appears and how often those traces answered odd."""
+    traces = [t for t in load_traces(args.results_dir) if t.model == args.model]
+    try:
+        out = build_confusion_figure(traces, args.labels, args.out)
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return 2

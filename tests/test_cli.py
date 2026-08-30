@@ -39,6 +39,7 @@ def test_every_subcommand_is_reachable() -> None:
         "validate-judge",
         "branch",
         "prompt-figure",
+        "confusion-figure",
         "branch-figure",
         "gaming-figure",
         "export-traces",
