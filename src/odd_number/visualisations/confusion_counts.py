@@ -25,7 +25,7 @@ from matplotlib.ticker import PercentFormatter
 from odd_number.confusions import QUESTIONS, is_grounded, read_labels
 from odd_number.grades import wilson_interval
 from odd_number.traces import Trace
-from odd_number.visualisations.figures import ARTEFACT_FILE, CAPTION_INK
+from odd_number.visualisations.figures import ARTEFACT_FILE, CAPTION_INK, apply_house_style
 
 ALL_INK: Final[str] = "#c9c4bd"
 ODD_INK: Final[str] = "#a3325c"
@@ -135,6 +135,7 @@ def draw_odd_share(axes: Axes, counts: list[ConfusionCount], base_rate: float) -
 
 def confusion_counts_figure(counts: list[ConfusionCount], total: int, odd_total: int) -> Figure:
     """Both panels, sharing one set of row labels down the left."""
+    apply_house_style()
     base_rate = odd_total / total if total else 0.0
     # Header space is reserved in inches and converted, because the caption is
     # figure-level text that tight_layout cannot see and savefig's tight bbox

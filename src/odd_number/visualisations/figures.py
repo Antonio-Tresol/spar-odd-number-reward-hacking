@@ -16,8 +16,10 @@ from __future__ import annotations
 import re
 import textwrap
 from dataclasses import dataclass
+from pathlib import Path
 
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
@@ -87,6 +89,34 @@ class GamingRate:
     def ever(self) -> bool:
         """Whether this model produced an odd answer at all."""
         return self.odd > 0
+
+
+#: Open Sans, vendored under OFL-1.1 with its licence beside it. It is here rather
+#: than named as a system font because `figures/` is committed and the notes cite
+#: those images: a font the repository cannot carry would render correctly on one
+#: machine and silently fall back to DejaVu Sans on every other. It is also on
+#: Google Fonts, so a write-up can use the same face.
+FONT_DIR: Path = Path(__file__).resolve().parents[3] / "assets" / "fonts"
+FONT_FAMILY: str = "Open Sans"
+#: Tried in order. The last is bundled with matplotlib, so text always renders.
+FONT_STACK: tuple[str, ...] = (FONT_FAMILY, "Liberation Sans", "Arial", "DejaVu Sans")
+
+
+def apply_house_style() -> None:
+    """Register the vendored fonts and point matplotlib at them.
+
+    Called by each figure builder rather than at import, because this package's
+    modules are library code and mutating global `rcParams` on import would change
+    the look of any other matplotlib figure in the same process.
+
+    Missing font files are not an error: the stack falls through to the face
+    matplotlib ships, so a checkout without `assets/fonts` still draws.
+    """
+    for path in sorted(FONT_DIR.glob("*.ttf")):
+        font_manager.fontManager.addfont(str(path))
+    plt.rcParams["font.family"] = "sans-serif"
+    plt.rcParams["font.sans-serif"] = [*FONT_STACK, *plt.rcParams["font.sans-serif"]]
+    plt.rcParams["axes.unicode_minus"] = False
 
 
 def is_base_cell(trace: Trace, treatment: str) -> bool:
@@ -306,6 +336,7 @@ def gaming_rate_figure(conflict: list[GamingRate], agree: list[GamingRate]) -> F
     Every number in the title and the caption is computed from the two rate lists,
     so the figure cannot disagree with the data behind it.
     """
+    apply_house_style()
     n = conflict[0].parseable
     floor = resolution_floor(conflict)
     figure, axes = plt.subplots(figsize=(10.4, 8.0), dpi=140)
@@ -335,7 +366,7 @@ def gaming_rate_figure(conflict: list[GamingRate], agree: list[GamingRate]) -> F
         axes.spines[side].set_visible(False)
     axes.spines["bottom"].set_color("#d1d5db")
     axes.annotate(
-        f"\u2190 shaded: any rate in here is consistent with 0 of {n}",
+        f"shaded band, left: any rate in here is consistent with 0 of {n}",
         xy=(floor + 0.006, 1.01),
         xycoords=("data", "axes fraction"),
         size=9.5,

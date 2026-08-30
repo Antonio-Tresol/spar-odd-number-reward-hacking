@@ -21,7 +21,13 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from odd_number.traces import Trace
-from odd_number.visualisations.figures import CAPTION_INK, CONFLICT_ARM, is_base_cell, short_model
+from odd_number.visualisations.figures import (
+    CAPTION_INK,
+    CONFLICT_ARM,
+    apply_house_style,
+    is_base_cell,
+    short_model,
+)
 
 #: Teal for an even answer, magenta for an odd one, as the explainer colours them.
 EVEN_INK: str = "#3f7f79"
@@ -128,6 +134,7 @@ def deliberation_figure(panels: list[Deliberation]) -> Figure:
     meaning different things, and the comparison a reader wants is exactly whether
     one model deliberates longer than the other.
     """
+    apply_house_style()
     limit = max(p.longest for p in panels)
     solo = len(panels) == 1
     figure, axes = plt.subplots(

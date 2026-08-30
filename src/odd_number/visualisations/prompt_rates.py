@@ -36,7 +36,12 @@ from matplotlib.ticker import PercentFormatter
 
 from odd_number.grades import wilson_interval
 from odd_number.traces import Trace
-from odd_number.visualisations.figures import ARTEFACT_FILE, CAPTION_INK, short_model
+from odd_number.visualisations.figures import (
+    ARTEFACT_FILE,
+    CAPTION_INK,
+    apply_house_style,
+    short_model,
+)
 from odd_number.visualisations.variants import DEFAULT_TOP_K, DEFAULT_TOP_P, sampling_by_file
 
 BAND_MAIN: Final[str] = "The prompt itself"
@@ -261,6 +266,7 @@ def draw_prompt_rates(axes: Axes, rates: list[PromptRate]) -> None:
 
 def prompt_rates_figure(rates: list[PromptRate], model: str) -> Figure:
     """The whole figure: title, subtitle, rows, and the count beside each row."""
+    apply_house_style()
     rows = len(rates) + len(band_of(rates)) - 1
     figure, axes = plt.subplots(figsize=(FIGURE_WIDTH_IN, 1.9 + ROW_HEIGHT_IN * rows))
     draw_prompt_rates(axes, rates)

@@ -30,7 +30,7 @@ from matplotlib.ticker import PercentFormatter
 from odd_number.grades import wilson_interval
 from odd_number.rollouts import read_rollouts
 from odd_number.traces import Trace
-from odd_number.visualisations.figures import CAPTION_INK, short_model
+from odd_number.visualisations.figures import CAPTION_INK, apply_house_style, short_model
 
 #: The sampling every cell uses unless it was re-run to test the sampling itself.
 DEFAULT_TOP_P: float = 1.0
@@ -231,6 +231,7 @@ def draw_variants(axes: Axes, variants: list[Variant]) -> None:
 
 def variants_figure(variants: list[Variant], model: str) -> Figure:
     """The wording-and-sampling sweep for one model, titled with its own verdict."""
+    apply_house_style()
     figure, axes = plt.subplots(figsize=(FIGURE_WIDTH_IN, 0.62 * len(variants) + 3.9), dpi=140)
     figure.subplots_adjust(left=0.33, right=0.94, top=0.74, bottom=0.30)
     draw_variants(axes, variants)

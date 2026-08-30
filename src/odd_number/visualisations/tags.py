@@ -32,7 +32,13 @@ from matplotlib.figure import Figure
 
 from odd_number.readings import Reading, TraceKey, trace_key
 from odd_number.traces import Trace
-from odd_number.visualisations.figures import CAPTION_INK, CONFLICT_ARM, is_base_cell, short_model
+from odd_number.visualisations.figures import (
+    CAPTION_INK,
+    CONFLICT_ARM,
+    apply_house_style,
+    is_base_cell,
+    short_model,
+)
 
 TAG_INK: str = "#a3325c"
 
@@ -212,6 +218,7 @@ def tag_bars_figure(groups: list[list[Batch]], limit: int = TOP_TAGS) -> Figure:
     drops the sentence about comparing panels, which would be talking about a
     comparison the figure does not offer.
     """
+    apply_house_style()
     solo = len(groups) == 1
     width = FIGURE_WIDTH_IN * (0.76 if solo else 1.0)
     figure, axes = plt.subplots(1, len(groups), figsize=(width, 0.40 * limit + 3.0), dpi=140)
