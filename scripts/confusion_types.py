@@ -28,7 +28,16 @@ from odd_number.visualisations.figures import ARTEFACT_FILE
 MODEL: Final[str] = "qwen/qwen3.8-27b"
 RESULTS: Final[Path] = Path(__file__).resolve().parent.parent / "results"
 OUT: Final[Path] = Path(__file__).resolve().parent.parent / "notes" / "qwen38-confusion-types.md"
+#: The reference labels. Sonnet, one agent per trace, quotes grounded by grep:
+#: 1,480 of 1,481 positive labels quote text that is in the trace. The Haiku pass
+#: beside it grounded 84% and is kept as a second rater, not as the reference.
 LABELS: Final[Path] = (
+    Path(__file__).resolve().parent.parent
+    / "results"
+    / "confusion-labels"
+    / "qwen38-conflict-labels-sonnet.jsonl"
+)
+SECOND_RATER: Final[Path] = (
     Path(__file__).resolve().parent.parent
     / "results"
     / "confusion-labels"
@@ -170,36 +179,44 @@ def read_labels(path: Path) -> dict[str, dict]:
     return rows
 
 
-def main() -> int:
-    traces = conflict_traces(RESULTS, MODEL)
-    by_id = {t.id: t for t in traces}
-    labels = read_labels(LABELS)
-    read = [t for t in traces if t.id in labels]
-    total, odd_total = len(traces), sum(1 for t in traces if t.parity == "odd")
+def rater_rows(traces: list[Trace], first: dict[str, dict], second: dict[str, dict]) -> list[str]:
+    """One row per question comparing the two raters, with Cohen's kappa.
 
+    Kappa rather than raw agreement, because five of the six questions are
+    answered yes most of the time and raw agreement flatters a rater that always
+    says yes.
+    """
+    shared = [t for t in traces if t.id in first and t.id in second]
     rows = []
     for confusion, key in zip(CONFUSIONS, KEYS, strict=True):
-        seen = [t for t in read if (labels[t.id].get(key) or {}).get("grounded")]
-        fired = [t for t in read if re.search(confusion.pattern, t.reasoning, re.I)]
-        both = [t for t in seen if t in fired]
-        odd = sum(1 for t in seen if t.parity == "odd")
-        start, stop = locate(by_id, confusion)
-        source = by_id[confusion.trace_id]
+        a = [bool((first[t.id].get(key) or {}).get("grounded")) for t in shared]
+        b = [bool((second[t.id].get(key) or {}).get("grounded")) for t in shared]
+        n = len(shared)
+        observed = sum(x == y for x, y in zip(a, b, strict=True)) / n
+        pa, pb = sum(a) / n, sum(b) / n
+        expected = pa * pb + (1 - pa) * (1 - pb)
+        kappa = (observed - expected) / (1 - expected) if expected < 1 else 0.0
         rows.append(
-            f"| {confusion.question} | “{confusion.sample}” | "
-            f"`{confusion.trace_id}` · {source.number} ({source.parity}) | "
-            f"{start:,}–{stop:,} | {len(seen)} of {len(read)} "
-            f"({len(seen) / len(read):.0%}) | {odd} ({odd / max(1, len(seen)):.0%}) | "
-            f"{len(both) / len(fired):.0%} | {len(both) / max(1, len(seen)):.0%} |"
+            f"| {confusion.question} | {sum(a)} of {n} | {sum(b)} of {n} | "
+            f"{observed:.0%} | {kappa:.2f} |"
         )
+    return rows
 
-    provenance = chr(10).join(f"- **{c.question}** — {c.provenance}" for c in CONFUSIONS)
-    OUT.write_text(
-        f"""# qwen3.8-27b: what the model is unsure about, and how often
+
+def render_note(
+    total: int,
+    odd_total: int,
+    read_count: int,
+    rows: list[str],
+    rater: list[str],
+    provenance: str,
+) -> str:
+    """The whole note, so `main` stays a pipeline rather than a document."""
+    return f"""# qwen3.8-27b: what the model is unsure about, and how often
 
 Every graded conflict-arm rollout of `{MODEL}`, across all ten prompt treatments,
 smoke-test files excluded: **{total} traces**, of which {odd_total} answered odd.
-{len(read)} of them carry an agent label and are the denominator below.
+{read_count} of them carry an agent label and are the denominator below.
 
 | what the model is unsure about | sample snippet | trace | at | traces | of which odd | regex precision | regex recall |
 |---|---|---|---|---|---|---|---|
@@ -216,21 +233,32 @@ also saw it; `recall` is how much of what the reader saw the pattern caught.
 
 ## What the audit changed
 
-The first version of this table counted regex matches. Those counts were wrong in
-both directions, which is why they are gone:
+The first version of this table counted regex matches. The patterns turn out to
+be high-precision and moderate-recall: when one fires it is almost always right
+(71% to 100%), but it catches only half to nine tenths of what a reader sees. So
+the table under-counted every question, some by half.
 
-| question | regex said | labels say |
-|---|---|---|
-| Is the sender a person or a machine? | 28% | 9% |
-| Who put the grader in the message? | 33% | 22% |
-| Am I being tested, and for what? | 44% | 52% |
-| What does the user actually want? | 33% | 52% |
-| Which one wins, the instruction or the grader? | 61% | 66% |
-| Will my answer even be parsed? | 90% | 66% |
+An intermediate version scored the patterns against a Haiku pass and reported the
+opposite, that the sender and authorship questions were over-counted several
+times over. That was wrong. Haiku missed those categories wholesale, so its
+disagreements read as regex false positives when they were rater false negatives.
+The lesson is in the two-rater table below rather than in any of those numbers.
 
-The sender question was over-counted three times over, and the parsing question
-by a third; the two about intent were under-counted by about half. Only the
-authority question was close.
+## Two raters
+
+The same 362 traces were labelled twice. Sonnet, one agent per trace, is the
+reference above. Haiku, twenty traces per agent, is the other.
+
+| question | sonnet | haiku | raw agreement | Cohen's kappa |
+|---|---|---|---|---|
+{chr(10).join(rater)}
+
+Kappa between 0.07 and 0.33 is poor. It is not evidence that the questions are
+ill-defined: Sonnet grounded 1,480 of 1,481 positive labels in the trace text and
+Haiku 84%, so the disagreement is mostly Haiku missing things it could not later
+quote. Two raters were meant to give a citable agreement statistic. What they
+gave instead is a measurement of how far a cheap rater falls short, which is
+worth knowing before trusting one.
 
 ## How this was built
 
@@ -259,7 +287,38 @@ from a prompt that names the six questions, and 24% of its positive labels could
 not be quoted even under the grep protocol and were dropped. Treat the counts as
 one instrument's reading with a known error rate against a second, which is more
 than either had alone.
-""",
+"""
+
+
+def main() -> int:
+    traces = conflict_traces(RESULTS, MODEL)
+    by_id = {t.id: t for t in traces}
+    labels = read_labels(LABELS)
+    second = read_labels(SECOND_RATER)
+    read = [t for t in traces if t.id in labels]
+    total, odd_total = len(traces), sum(1 for t in traces if t.parity == "odd")
+
+    rows = []
+    for confusion, key in zip(CONFUSIONS, KEYS, strict=True):
+        seen = [t for t in read if (labels[t.id].get(key) or {}).get("grounded")]
+        fired = [t for t in read if re.search(confusion.pattern, t.reasoning, re.I)]
+        both = [t for t in seen if t in fired]
+        odd = sum(1 for t in seen if t.parity == "odd")
+        start, stop = locate(by_id, confusion)
+        source = by_id[confusion.trace_id]
+        rows.append(
+            f"| {confusion.question} | “{confusion.sample}” | "
+            f"`{confusion.trace_id}` · {source.number} ({source.parity}) | "
+            f"{start:,}–{stop:,} | {len(seen)} of {len(read)} "
+            f"({len(seen) / len(read):.0%}) | {odd} ({odd / max(1, len(seen)):.0%}) | "
+            f"{len(both) / len(fired):.0%} | {len(both) / max(1, len(seen)):.0%} |"
+        )
+
+    provenance = chr(10).join(f"- **{c.question}** — {c.provenance}" for c in CONFUSIONS)
+    OUT.write_text(
+        render_note(
+            total, odd_total, len(read), rows, rater_rows(read, labels, second), provenance
+        ),
         encoding="utf-8",
     )
     print(f"{OUT}  ({len(read)} labelled of {total} traces, {len(CONFUSIONS)} questions)")
