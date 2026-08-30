@@ -130,6 +130,46 @@ def load_labels(folder: Path) -> tuple[dict[str, LabelRow], int, int]:
     return labels, rows, malformed
 
 
+#: Damage a labeller does to a quote that does not change which passage it names.
+#: Every repair below has to land on a real substring of the trace, so none of
+#: them can turn a paraphrase into a match: they recover the span the labeller was
+#: looking at, or they fail. Diagnosed over 265 ungrounded labels on 2026-08-30:
+#: 21% were one of these, and the other 79% were the labeller writing new text.
+def repair(quote: str, reasoning: str) -> str | None:
+    """The real span a damaged quote was pointing at, or None if there isn't one.
+
+    Returned as it appears in the trace, not as the labeller typed it, so a
+    repaired quote is verbatim like any other.
+    """
+    if len(quote.split()) < 3:
+        return None
+    folded = fold(reasoning)
+
+    def found(candidate: str) -> str | None:
+        c = fold(candidate)
+        if len(c.split()) < 3:
+            return None
+        start = folded.find(c)
+        return folded[start : start + len(c)] if start >= 0 else None
+
+    lowered = folded.lower()
+    start = lowered.find(fold(quote).lower())
+    if start >= 0:  # the labeller changed the case
+        return folded[start : start + len(fold(quote))]
+    for candidate in (
+        quote.strip(" .?!,;:\"'()[]"),  # it added or dropped edge punctuation
+        *re.split(r"\.{3}|…", quote),  # it joined two spans with an ellipsis
+        " ".join(quote.split()[1:]),  # it ran one word early
+        " ".join(quote.split()[:-1]),  # or one word late
+        " ".join(quote.split()[2:]),
+        " ".join(quote.split()[:-2]),
+    ):
+        hit = found(candidate)
+        if hit:
+            return hit
+    return None
+
+
 def verified(row: LabelRow, key: str, trace: Trace) -> bool | None:
     """Whether the label is present, or None when its quote is not in the trace.
 
@@ -145,7 +185,10 @@ def verified(row: LabelRow, key: str, trace: Trace) -> bool | None:
     quote = str(cell.get("quote") or "")
     if len(quote.split()) < 3:
         return None
-    return True if fold(quote) in fold(normalised(trace.reasoning)) else None
+    reasoning = normalised(trace.reasoning)
+    if fold(quote) in fold(reasoning):
+        return True
+    return True if repair(quote, reasoning) else None
 
 
 def score(traces: list[Trace], labels: dict[str, LabelRow], strict: bool = True) -> list[Score]:
