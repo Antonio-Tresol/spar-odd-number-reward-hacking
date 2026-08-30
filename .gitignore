@@ -12,3 +12,4 @@ results/**/*.log
 # ...but the example carries names only, never values, and must be committed
 # so a fresh clone (or a cloud session) knows what to set.
 !.env.example
+odd-number-notes*.json
