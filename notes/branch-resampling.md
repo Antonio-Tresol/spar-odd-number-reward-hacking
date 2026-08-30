@@ -1,7 +1,10 @@
 # Branch resampling on one odd trace (Q1.H8.E1)
 
-Method from Macar et al., "Thought Branches: Interpreting LLM Reasoning Requires
-Resampling" (arXiv 2510.27484), section 2.1.1. Hold the first *N* sentences of a
+Design from Bogdan et al., "Thought Anchors" (arXiv 2506.19143) section 2.3, by
+way of Macar et al., "Thought Branches" (arXiv 2510.27484) section 2.1.1. What is
+computed here is their *resampling* importance, not their *counterfactual*
+importance, since no semantic-dissimilarity filter is applied; see
+`notes/resampling-method-provenance.md` for what that costs. Hold the first *N* sentences of a
 real collected trace as a prefix, resample everything after it, and read the
 shift in P(odd) across *N*. The outcome here is one bit, so counterfactual
 importance is a difference of proportions:

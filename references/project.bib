@@ -20,7 +20,9 @@
 % ---------- Methods cited by the protocol (not yet read in full) ----------
 
 % Sentence resampling. Cited in singh2026modelforensics §4 as the source of the
-% resampling-score method. Not read in-session; do not quote.
+% resampling-score method, and linked by the take-home itself. Read in full
+% 2026-08-29; §2.3 is the resampling design Q1.H8 implements and §3.2 defines the
+% two measures. See notes/resampling-method-provenance.md.
 @article{bogdan2025resampling,
   title   = {Thought Anchors: Which LLM Reasoning Steps Matter?},
   author  = {Bogdan, Paul C. and Macar, Uzay and Nanda, Neel and Conmy, Arthur},
@@ -28,6 +30,20 @@
   eprint  = {2506.19143},
   archivePrefix = {arXiv},
   url     = {https://arxiv.org/abs/2506.19143},
+}
+
+% The successor this project built from: TREE.md's Q1.H8 nodes cite it for the
+% branch-resampling design. Restates bogdan2025resampling's counterfactual
+% importance in its §2.1.1 and adds resilience and counterfactual++ in §2.1.2.
+% Read in-session 2026-08-29.
+@inproceedings{macar2026thoughtbranches,
+  title     = {Thought Branches: Interpreting LLM Reasoning Requires Resampling},
+  author    = {Macar, Uzay and Bogdan, Paul C. and Rajamanoharan, Senthooran and Nanda, Neel},
+  year      = {2026},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  eprint    = {2510.27484},
+  archivePrefix = {arXiv},
+  url       = {https://arxiv.org/abs/2510.27484},
 }
 
 % ---------- The mentor's problem list ----------

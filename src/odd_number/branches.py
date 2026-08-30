@@ -1,15 +1,28 @@
 """Resampling a chain of thought from truncation points.
 
-Method from Macar et al., "Thought Branches: Interpreting LLM Reasoning Requires
-Resampling" (arXiv 2510.27484), section 2.1.1: hold `S_1..S_i` as a prefix,
-resample everything after it, and read the shift in the outcome distribution.
-Their code resamples through OpenRouter's `/v1/completions`; so does this.
+Design from Bogdan et al., "Thought Anchors: Which LLM Reasoning Steps Matter?"
+(arXiv 2506.19143), section 2.3, by way of its successor Macar et al., "Thought
+Branches: Interpreting LLM Reasoning Requires Resampling" (arXiv 2510.27484),
+section 2.1.1: hold `S_1..S_i` as a prefix, resample everything after it, and
+read the shift in the outcome distribution. Their code resamples through
+OpenRouter's `/v1/completions`; so does this.
 
-The outcome here is one bit, odd or even, so counterfactual importance is a
-difference of proportions and needs none of the paper's embedding or KL
-machinery:
+The outcome here is one bit, odd or even, so the papers' KL over a multiclass
+answer distribution becomes a difference of proportions:
 
     importance(S_i) = P(odd | S_1..S_i) - P(odd | S_1..S_i-1)
+
+That substitution is free. Dropping the embeddings is not, and the two are
+unrelated: both papers define *counterfactual* importance as this contrast
+conditioned on the resampled sentence being semantically unlike the original,
+because a resample that reproduces `S_i` says nothing about `S_i`. Unfiltered,
+this computes the weaker quantity they call *resampling* importance, and every
+per-sentence step it reports is a lower bound — pools contain continuations that
+re-derived the dropped sentence and contribute zero by construction. 2510.27484
+section 2.1.2 finds reasoning models regenerate deleted content readily, so the
+bias is not assumed small. Read a near-zero step as unmeasured, not as inert.
+Cumulative rates, `P(odd | first k sentences)`, are unaffected by any of this.
+See `notes/resampling-method-provenance.md`.
 
 Three things this module must not do quietly.
 

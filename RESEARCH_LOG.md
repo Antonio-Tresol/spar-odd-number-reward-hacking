@@ -82,6 +82,48 @@ Entry format:
   lists, Kimi K3 as a second branch model, the per-sentence sweep across
   sentences [21] to [42], and the paraphrase gaps.
 
+### Addendum, 2026-08-29 — which resampling method Q1.H8 actually implements
+
+* What I did: Read both resampling papers in full, which nothing in this project
+  had done. The take-home links Bogdan et al., "Thought Anchors" (arXiv
+  2506.19143); `Q1.H8` was built from its successor, Macar et al., "Thought
+  Branches" (arXiv 2510.27484). Before today the bibliography held the paper we
+  did not use, flagged "not read in-session; do not quote", and omitted the one
+  every `Q1.H8` claim rests on. Both fixed, authors taken off the title page.
+  Comparison written up in `notes/resampling-method-provenance.md`, verbatim
+  quotes checked against the extracted PDFs.
+
+* What I expected vs what happened: I expected a citation tidy-up and found a
+  methodological gap. The resampling *design* is the same in both papers and is
+  what `branches.py` does: hold a prefix, resample forward, read the shift. But
+  both papers define two measures on that design, and prefer the second.
+  Resampling importance is the plain contrast; counterfactual importance
+  conditions it on the resampled sentence being semantically unlike the original,
+  because a resample that happens to reproduce the sentence tells you nothing
+  about that sentence. This project computes the first. The module's docstring
+  said a one-bit outcome "needs none of the paper's embedding or KL machinery",
+  which is right about the KL and wrong about the embeddings: the filter has
+  nothing to do with how many outcome classes there are.
+
+* What this changes about my thinking: It cuts one way only, and it is the way
+  that helps. The cumulative curve is untouched, because P(odd | first k
+  sentences) is well defined whatever estimator you prefer, so the envelope, both
+  anchors, the three-trace comparison and the whole cross-prompt contrast stand
+  as recorded. What changes is the per-sentence decomposition in `C6`. Every
+  branch point's pool contains continuations that re-derived the sentence just
+  dropped and contribute zero by construction, so each step is attenuated toward
+  zero by an unmeasured amount, and 2510.27484's resilience result says that is
+  not a small effect for reasoning models. So `C6`'s conclusion, that the
+  decomposition is unstable and the envelope is the finding, is better supported
+  than the multiple-comparisons argument alone made it. The reading of a
+  near-zero step like [14] changes from "this sentence does nothing" to "this was
+  not measured". Recorded in `Q1.H8.E1` and `C6` rather than fixed, since
+  filtering needs embeddings over every resampled continuation and the payoff for
+  a one-bit outcome on one trace is not obvious.
+
+* What I will do next: Unchanged. Antonio writes the deliverable, `falsify` has
+  still never run, every node is `unvalidated`.
+
 ### Addendum, 2026-08-29 — the same bug in two more nodes, and a fact the draft was carrying alone
 
 * What I did: The 6,810 error was not an instance, it was a class: a median
