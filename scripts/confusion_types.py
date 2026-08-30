@@ -16,6 +16,7 @@ this file. A trace matching two families is counted in both.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +28,21 @@ from odd_number.visualisations.figures import ARTEFACT_FILE
 MODEL: Final[str] = "qwen/qwen3.8-27b"
 RESULTS: Final[Path] = Path(__file__).resolve().parent.parent / "results"
 OUT: Final[Path] = Path(__file__).resolve().parent.parent / "notes" / "qwen38-confusion-types.md"
+LABELS: Final[Path] = (
+    Path(__file__).resolve().parent.parent
+    / "results"
+    / "confusion-labels"
+    / "qwen38-conflict-labels.jsonl"
+)
+#: The six label keys, in the order `CONFUSIONS` declares them.
+KEYS: Final[tuple[str, ...]] = (
+    "sender_identity",
+    "metadata_authorship",
+    "being_tested",
+    "user_intent",
+    "authority_conflict",
+    "parse_anxiety",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,71 +152,117 @@ def locate(traces: dict[str, Trace], confusion: Confusion) -> tuple[int, int]:
     return start, start + len(confusion.sample)
 
 
+def read_labels(path: Path) -> dict[str, dict]:
+    """The agent labels, keyed by trace, or nothing when they have not been collected.
+
+    Each label carries `grounded`, set when the labeller's quote was found in the
+    trace it cites. Only grounded labels are counted: the run this file reports
+    left 24% of its positive labels unquotable even after being told to find them
+    with grep, so an ungrounded label is a claim the reader could not support.
+    """
+    if not path.is_file():
+        return {}
+    rows: dict[str, dict] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            row = json.loads(line)
+            rows[row["trace_id"]] = row
+    return rows
+
+
 def main() -> int:
     traces = conflict_traces(RESULTS, MODEL)
-    by_id = {t.id: t for t in load_traces(RESULTS)}
-    total = len(traces)
-    odd_total = sum(1 for t in traces if t.parity == "odd")
+    by_id = {t.id: t for t in traces}
+    labels = read_labels(LABELS)
+    read = [t for t in traces if t.id in labels]
+    total, odd_total = len(traces), sum(1 for t in traces if t.parity == "odd")
 
     rows = []
-    for confusion in CONFUSIONS:
-        found = [t for t in traces if re.search(confusion.pattern, t.reasoning, re.I)]
-        odd = sum(1 for t in found if t.parity == "odd")
-        start, end = locate(by_id, confusion)
+    for confusion, key in zip(CONFUSIONS, KEYS, strict=True):
+        seen = [t for t in read if (labels[t.id].get(key) or {}).get("grounded")]
+        fired = [t for t in read if re.search(confusion.pattern, t.reasoning, re.I)]
+        both = [t for t in seen if t in fired]
+        odd = sum(1 for t in seen if t.parity == "odd")
+        start, stop = locate(by_id, confusion)
         source = by_id[confusion.trace_id]
         rows.append(
             f"| {confusion.question} | “{confusion.sample}” | "
             f"`{confusion.trace_id}` · {source.number} ({source.parity}) | "
-            f"{start:,}–{end:,} | {len(found)} of {total} ({len(found) / total:.0%}) | "
-            f"{odd} ({odd / len(found):.0%}) |"
+            f"{start:,}–{stop:,} | {len(seen)} of {len(read)} "
+            f"({len(seen) / len(read):.0%}) | {odd} ({odd / max(1, len(seen)):.0%}) | "
+            f"{len(both) / len(fired):.0%} | {len(both) / max(1, len(seen)):.0%} |"
         )
 
-    provenance = "\n".join(f"- **{c.question}** — {c.provenance}" for c in CONFUSIONS)
+    provenance = chr(10).join(f"- **{c.question}** — {c.provenance}" for c in CONFUSIONS)
     OUT.write_text(
         f"""# qwen3.8-27b: what the model is unsure about, and how often
 
 Every graded conflict-arm rollout of `{MODEL}`, across all ten prompt treatments,
 smoke-test files excluded: **{total} traces**, of which {odd_total} answered odd.
+{len(read)} of them carry an agent label and are the denominator below.
 
-| what the model is unsure about | sample snippet | trace | at | count | of which odd |
-|---|---|---|---|---|---|
+| what the model is unsure about | sample snippet | trace | at | traces | of which odd | regex precision | regex recall |
+|---|---|---|---|---|---|---|---|
 {chr(10).join(rows)}
 
-`at` is `reasoning[start:end]` in the named trace, against the same normalised
-form the explainer uses for its own marks, so the offsets are the ones
-`notes/reader-notes.json` uses.
+**`traces` counts agent labels, not regex matches.** Eighteen agents read every
+trace in full and answered the six questions independently, quoting the passage
+that decided each yes. A label whose quote could not be found in the trace it
+cites is not counted.
+
+The last two columns score the keyword patterns that used to produce this table
+against those labels. `precision` is how often a pattern firing meant the reader
+also saw it; `recall` is how much of what the reader saw the pattern caught.
+
+## What the audit changed
+
+The first version of this table counted regex matches. Those counts were wrong in
+both directions, which is why they are gone:
+
+| question | regex said | labels say |
+|---|---|---|
+| Is the sender a person or a machine? | 28% | 9% |
+| Who put the grader in the message? | 33% | 22% |
+| Am I being tested, and for what? | 44% | 52% |
+| What does the user actually want? | 33% | 52% |
+| Which one wins, the instruction or the grader? | 61% | 66% |
+| Will my answer even be parsed? | 90% | 66% |
+
+The sender question was over-counted three times over, and the parsing question
+by a third; the two about intent were under-counted by about half. Only the
+authority question was close.
 
 ## How this was built
 
-Rebuild it with `uv run scripts/confusion_types.py`. That script owns the
-questions and the patterns, and it fails rather than writing the table if a
-snippet has stopped matching its trace.
+`uv run scripts/confusion_types.py` rebuilds the table. It fails rather than
+writing if a sample snippet has stopped matching its trace.
 
-**No agent produced anything in this table.** Agents did read traces in this
-project, but for a different note (`notes/principal-deliberation-exemplars.md`),
-and five of the sixty-six quotes they returned were not in the files they cited
-and were dropped. None of their output reaches the counts here.
-
-**The six questions are Antonio's**, taken from the marks and notes he wrote
-while reading:
+**The six questions are Antonio's**, from marks and notes he wrote while reading:
 
 {provenance}
 
-**The counts are lexical.** A regular expression per question, run over the
-reasoning text of all {total} traces. No embedding, no clustering, no model
-judgement. A trace raising two questions is counted under both, so the column
-does not sum to {total}.
+**The labels come from eighteen agents reading all {total} traces in full**, about
+twenty each, writing one JSON line per trace. They are stored as evidence in
+`results/confusion-labels/qwen38-conflict-labels.jsonl`, one row per trace, each
+label carrying `grounded`.
 
-**The table is confirmatory, not exploratory.** The patterns were written to
-match passages Antonio had already marked and then widened by hand, so the
-table cannot be cited as having discovered these categories. What it adds is how
-common each one is, and the caveat that a regex catches a phrasing rather than a
-meaning: the parsing family in particular is the loosest, matching any mention of
-parsing rather than anxiety about it.
+That protocol is the second attempt. The first asked twelve agents to label from
+memory and return one JSON array each. It produced 52% groundable quotes and four
+unparseable files out of twelve, losing 125 traces, and returned zero for the
+sender question across five separate batches in a corpus where that question is
+demonstrably asked. Requiring the agent to locate its quote with grep, and to
+append one line per trace rather than assemble an array, took grounding to 76%
+and unparseable files to none.
+
+**The labels are still not ground truth.** They are one cheap model's reading,
+from a prompt that names the six questions, and 24% of its positive labels could
+not be quoted even under the grep protocol and were dropped. Treat the counts as
+one instrument's reading with a known error rate against a second, which is more
+than either had alone.
 """,
         encoding="utf-8",
     )
-    print(f"{OUT}  ({total} traces, {len(CONFUSIONS)} questions)")
+    print(f"{OUT}  ({len(read)} labelled of {total} traces, {len(CONFUSIONS)} questions)")
     return 0
 
 

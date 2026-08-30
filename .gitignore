@@ -13,3 +13,8 @@ results/**/*.log
 # so a fresh clone (or a cloud session) knows what to set.
 !.env.example
 odd-number-notes*.json
+
+# Agents occasionally write a helper to a Windows path that becomes a literal
+# filename in the repo root. Three landed there on 2026-08-30, one of them a
+# batch's label output. Ignored so the next one cannot be committed by accident.
+C[:\uf03a]Users*
