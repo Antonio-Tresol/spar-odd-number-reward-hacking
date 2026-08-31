@@ -18,6 +18,8 @@ than restates.
 from __future__ import annotations
 
 import json
+import re
+import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,6 +29,7 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import PercentFormatter
 
 from odd_number.grades import wilson_interval
+from odd_number.traces import file_stem
 from odd_number.visualisations.figures import CAPTION_INK, CONTROL_INK, ODD_INK, apply_house_style
 
 #: A branch point carrying fewer resamples than this is drawn hollow and left out
@@ -115,6 +118,27 @@ def read_branch_curve(path: Path, label: str) -> BranchCurve:
     return BranchCurve(label=label, rates=rates)
 
 
+def sweep_label(path: Path) -> str:
+    """A curve's name, read from the sweep rather than typed on the command line.
+
+    The trace id is the label because it is what a reader can look up: `trace 14`
+    means nothing outside this conversation, and a label typed at the shell can
+    disagree with the file it names. A cross-prompt sweep carries the prompt it
+    was continued under, since it shares its source trace with another curve.
+    """
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        trace_id = (
+            f"{file_stem(row['source_file'])}--{row['treatment']}--{int(row['source_index'])}"
+        )
+        under = re.search(r"-under-(.+)$", path.stem)
+        suffix = f", under {under.group(1).split('-')[-1]}" if under else ""
+        return f"{trace_id}, answered {row['source_parity']}{suffix}"
+    raise ValueError(f"{path} has no rows to read a label from")
+
+
 def draw_curve(axes: Axes, curve: BranchCurve, ink: str) -> None:
     """One curve: a line through the well-sampled points, every point marked."""
     solid = curve.solid
@@ -166,7 +190,7 @@ def branch_curve_figure(curves: list[BranchCurve], title: str, caption: str) -> 
     axes.yaxis.set_major_formatter(PercentFormatter(xmax=1.0))
     axes.set_xlabel("characters of the model's own reasoning held as a prefix")
     axes.set_ylabel("P(odd answer)")
-    axes.set_title(title, loc="left", fontsize=12)
+    axes.set_title("")
     axes.grid(axis="y", color=CONTROL_INK, alpha=0.15, linewidth=0.7)
     for side in ("top", "right"):
         axes.spines[side].set_visible(False)
@@ -174,6 +198,29 @@ def branch_curve_figure(curves: list[BranchCurve], title: str, caption: str) -> 
     # their empty space in different places, and a legend over the data is worse
     # than one that moves between figures.
     axes.legend(frameon=False, loc="best", fontsize=9)
-    figure.subplots_adjust(bottom=0.30)
-    figure.text(0.035, 0.10, caption, fontsize=8.5, color=CAPTION_INK, va="top", wrap=True)
+    # The same header the other figures use: a bold line naming the finding, a
+    # grey line saying how it was measured. Reserved in inches, because savefig's
+    # tight bbox crops a margin expressed as a fraction.
+    header_in = 1.25 if caption else 0.75
+    figure.set_size_inches(9.0, 5.4 + header_in)
+    figure.subplots_adjust(top=1 - header_in / (5.4 + header_in), bottom=0.13)
+    figure.text(
+        0.035,
+        1 - 0.30 / (5.4 + header_in),
+        title,
+        ha="left",
+        va="top",
+        fontsize=13.5,
+        fontweight="bold",
+    )
+    if caption:
+        figure.text(
+            0.035,
+            1 - 0.62 / (5.4 + header_in),
+            chr(10).join(textwrap.wrap(caption, 108)),
+            ha="left",
+            va="top",
+            fontsize=9.5,
+            color=CAPTION_INK,
+        )
     return figure

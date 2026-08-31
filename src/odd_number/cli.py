@@ -103,7 +103,12 @@ from odd_number.rollouts import (
 from odd_number.sampling import DEFAULT_SAMPLING, SamplingParams
 from odd_number.settings import PROJECT_ROOT, MissingSettingsError, Settings, load_settings
 from odd_number.traces import DEFAULT_MAX_CHARS, export_trace_chunks, load_traces, skipped_files
-from odd_number.visualisations.branch_curves import branch_curve_figure, read_branch_curve
+from odd_number.visualisations.branch_curves import (
+    SOLID_TRIALS,
+    branch_curve_figure,
+    read_branch_curve,
+    sweep_label,
+)
 from odd_number.visualisations.confusion_counts import build_confusion_figure
 from odd_number.visualisations.explainers import build_trace_explainer
 from odd_number.visualisations.figures import (
@@ -718,17 +723,33 @@ def add_output_parsers(sub: argparse._SubParsersAction) -> None:
 
 
 def cmd_branch_figure(args: argparse.Namespace) -> int:
-    """Draw one or more branch sweeps as P(odd) against prefix length."""
-    if len(args.sweep) != len(args.label):
+    """Draw one or more branch sweeps as P(odd) against prefix length.
+
+    Labels default to the trace each sweep came from, read out of the sweep
+    itself: a name typed at the shell can disagree with the file it names, and
+    `trace 14` is not something a reader can look up.
+    """
+    labels = args.label or [sweep_label(path) for path in args.sweep]
+    if len(args.sweep) != len(labels):
         print("--sweep and --label must be given the same number of times", file=sys.stderr)
         return 2
     curves = [
-        read_branch_curve(path, label) for path, label in zip(args.sweep, args.label, strict=True)
+        read_branch_curve(path, label) for path, label in zip(args.sweep, labels, strict=True)
     ]
     for curve in curves:
         covered = sum(rate.trials for rate in curve.rates)
         print(f"{curve.label}: {len(curve.rates)} branch points, {covered} resamples")
-    figure = branch_curve_figure(curves, args.title, args.caption)
+    solid = [rate for curve in curves for rate in curve.rates if rate.is_solid]
+    caption = args.caption or (
+        f"{len(curves)} sweep{'' if len(curves) == 1 else 's'}, "
+        f"{sum(len(c.rates) for c in curves)} branch points, "
+        f"{sum(rate.trials for c in curves for rate in c.rates)} resamples. A point is the "
+        f"share of continuations from that prefix that answered odd, with a 95% Wilson "
+        f"interval; hollow points are cells with fewer than {SOLID_TRIALS} resamples and are "
+        f"drawn but not joined. {len(solid)} of "
+        f"{sum(len(c.rates) for c in curves)} points are at full depth."
+    )
+    figure = branch_curve_figure(curves, args.title, caption)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(args.out, dpi=200, bbox_inches="tight")
     print(f"wrote {args.out}")
@@ -763,7 +784,11 @@ def add_branch_figure_parser(sub: argparse._SubParsersAction) -> None:
     """`branch-figure`: the resampling curve, as a PNG for a write-up."""
     figure = sub.add_parser("branch-figure", help="plot P(odd) against prefix length")
     figure.add_argument("--sweep", type=Path, action="append", required=True)
-    figure.add_argument("--label", action="append", required=True)
+    figure.add_argument(
+        "--label",
+        action="append",
+        help="one per --sweep; defaults to the trace id read from the sweep",
+    )
     figure.add_argument("--title", default="Where the answer is decided")
     figure.add_argument("--caption", default="")
     figure.add_argument("--out", type=Path, default=PROJECT_ROOT / "figures" / "branch-curve.png")
