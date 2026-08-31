@@ -20,6 +20,7 @@ from typing import Final
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.patches import Patch
 from matplotlib.ticker import PercentFormatter
 
 from odd_number.confusions import QUESTIONS, is_grounded, read_labels
@@ -88,6 +89,26 @@ def draw_prevalence(axes: Axes, counts: list[ConfusionCount], total: int) -> Non
     axes.set_xlim(0, total * 1.28)
     axes.set_title("How many traces raise it", fontsize=10.5, loc="left", pad=12)
     axes.set_xlabel("traces", fontsize=9.5, color=CAPTION_INK)
+    # Without this the two-tone bar is a puzzle: a reader has no way to know the
+    # dark segment is the odd answers rather than some second category.
+    axes.legend(
+        handles=[
+            Patch(facecolor=ODD_INK, label="answered odd"),
+            Patch(facecolor=ALL_INK, label="answered even"),
+        ],
+        # On the title line rather than inside the axes: every corner of the plot
+        # is either a bar or a count label, and the bottom right collided with both.
+        loc="lower right",
+        bbox_to_anchor=(1.0, 1.0),
+        ncols=2,
+        frameon=False,
+        fontsize=9,
+        labelcolor=CAPTION_INK,
+        handlelength=1.1,
+        handleheight=1.1,
+        borderaxespad=0.2,
+        columnspacing=1.4,
+    )
 
 
 def draw_odd_share(axes: Axes, counts: list[ConfusionCount], base_rate: float) -> None:
@@ -183,7 +204,8 @@ def confusion_counts_figure(counts: list[ConfusionCount], total: int, odd_total:
                 "One agent read each trace and answered the six questions independently, "
                 "quoting the passage that decided each yes; a label whose quote is not in the "
                 "trace is not counted. A trace can raise any number of the six, so the bars do "
-                "not sum to the corpus.",
+                "not sum to the corpus. Each bar is split by the answer the trace went on "
+                "to give.",
                 118,
             )
         ),
