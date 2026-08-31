@@ -116,7 +116,7 @@ from odd_number.visualisations.figures import (
     gaming_rate_figure,
     gaming_rates,
 )
-from odd_number.visualisations.prompt_rates import build_prompt_rates_figure
+from odd_number.visualisations.prompt_rates import BANDS, build_prompt_rates_figure
 
 # Errors in a row before giving up. A bad key or model name fails identically
 # every time, and burning the full budget to prove it is an expensive way to
@@ -799,6 +799,12 @@ def add_branch_figure_parser(sub: argparse._SubParsersAction) -> None:
     prompts.add_argument(
         "--out", type=Path, default=PROJECT_ROOT / "figures" / "qwen38-prompt-rates.png"
     )
+    prompts.add_argument(
+        "--bands",
+        nargs="+",
+        choices=list(BANDS),
+        help="which bands to draw; all three by default",
+    )
     prompts.set_defaults(func=cmd_prompt_figure)
 
     confusions = sub.add_parser(
@@ -820,7 +826,9 @@ def add_branch_figure_parser(sub: argparse._SubParsersAction) -> None:
 def cmd_prompt_figure(args: argparse.Namespace) -> int:
     """Draw one model's odd-answer rate for every prompt it was sent."""
     try:
-        out = build_prompt_rates_figure(args.results_dir, args.model, args.out)
+        out = build_prompt_rates_figure(
+            args.results_dir, args.model, args.out, tuple(args.bands) if args.bands else None
+        )
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return 2

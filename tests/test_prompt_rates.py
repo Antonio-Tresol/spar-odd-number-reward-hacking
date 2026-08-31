@@ -11,6 +11,7 @@ from odd_number.visualisations.prompt_rates import (  # noqa: E402
     BAND_INTENT,
     BAND_MAIN,
     BAND_WORDING,
+    BANDS,
     band_of,
     prompt_rates,
     treatment_suffix,
@@ -107,3 +108,18 @@ def test_a_cell_with_no_parseable_rollout_is_dropped_not_drawn_at_zero() -> None
 
     assert len(rates) == 1
     assert rates[0].band == BAND_MAIN
+
+
+def test_bands_can_be_selected_so_a_figure_can_drop_a_whole_group() -> None:
+    """Asked for the prompt and the clarifications, the wording controls go."""
+    traces = [
+        trace("odd-number-m-x.jsonl", "conflict-grader", 0, "even"),
+        trace("odd-number-m-x-p1.jsonl", "conflict-grader-p1", 0, "even"),
+        trace("odd-number-m-x-want.jsonl", "conflict-grader-want", 0, "even"),
+    ]
+    sampling = dict.fromkeys((t.file for t in traces), PLAIN)
+
+    kept = band_of(prompt_rates(traces, sampling, "m/x", bands=("main", "intent")))
+
+    assert [name for name, _ in kept] == [BAND_MAIN, BAND_INTENT]
+    assert set(BANDS) == {"main", "wording", "intent"}

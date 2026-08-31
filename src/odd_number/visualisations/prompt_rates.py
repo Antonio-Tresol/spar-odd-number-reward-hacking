@@ -47,6 +47,14 @@ BAND_MAIN: Final[str] = "The prompt itself"
 BAND_WORDING: Final[str] = "Wording controls, metadata block unchanged"
 BAND_INTENT: Final[str] = "A sentence added inside the metadata block"
 
+#: Short names for the bands, so a caller can ask for a subset without
+#: retyping a display string. Order here is the order they are drawn.
+BANDS: Final[dict[str, str]] = {
+    "main": BAND_MAIN,
+    "wording": BAND_WORDING,
+    "intent": BAND_INTENT,
+}
+
 #: Row order and wording, per treatment suffix. The suffix is what `collect`
 #: writes into the treatment name; the label is what a reader can act on. Order
 #: within a band is meaningful for the provenance ladder, which is cumulative.
@@ -130,7 +138,10 @@ def treatment_suffix(treatment: str, arm: str = "conflict-grader") -> str:
 
 
 def prompt_rates(
-    traces: list[Trace], sampling: dict[str, tuple[float, int]], model: str
+    traces: list[Trace],
+    sampling: dict[str, tuple[float, int]],
+    model: str,
+    bands: tuple[str, ...] | None = None,
 ) -> list[PromptRate]:
     """One row per (prompt, sampling) cell of a model's conflict-arm runs.
 
@@ -139,7 +150,8 @@ def prompt_rates(
     exists to be compared against. A treatment with no parseable rollout is
     dropped rather than drawn at zero, since 0/0 and 0/40 are different facts.
     """
-    wanted = {suffix: (band, label) for suffix, band, label in ROWS}
+    keep = {BANDS[name] for name in bands} if bands else set(BANDS.values())
+    wanted = {suffix: (band, label) for suffix, band, label in ROWS if band in keep}
     cells: dict[tuple[str, float, int], list[Trace]] = {}
     for trace in traces:
         if trace.model != model or trace.condition != "conflict":
@@ -289,12 +301,14 @@ def prompt_rates_figure(rates: list[PromptRate], model: str) -> Figure:
     return figure
 
 
-def build_prompt_rates_figure(results_dir: Path, model: str, out: Path) -> Path:
+def build_prompt_rates_figure(
+    results_dir: Path, model: str, out: Path, bands: tuple[str, ...] | None = None
+) -> Path:
     """Read the results, draw the figure, write it, and return where it went."""
     from odd_number.traces import load_traces
 
     traces = load_traces(results_dir)
-    rates = prompt_rates(traces, sampling_by_file(results_dir), model)
+    rates = prompt_rates(traces, sampling_by_file(results_dir), model, bands)
     if not rates:
         raise ValueError(f"no conflict-arm rollouts for {model} in {results_dir}")
     figure = prompt_rates_figure(rates, model)
