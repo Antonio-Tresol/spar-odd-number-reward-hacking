@@ -24,7 +24,6 @@ say nothing to a reader who has not memorised the environment.
 
 from __future__ import annotations
 
-import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -40,6 +39,7 @@ from odd_number.visualisations.figures import (
     ARTEFACT_FILE,
     CAPTION_INK,
     apply_house_style,
+    frame_figure,
     short_model,
 )
 from odd_number.visualisations.variants import DEFAULT_TOP_K, DEFAULT_TOP_P, sampling_by_file
@@ -284,31 +284,17 @@ def prompt_rates_figure(rates: list[PromptRate], model: str) -> Figure:
         "it to nothing. The second row changes the sampling rather than the message, and is "
         "here because it is the same prompt measured differently."
     )
-    wrapped = textwrap.wrap(caption, CAPTION_WRAP)
-    # The extra 0.3in clears the first band header, which sits above the top row.
-    header_in = 0.82 + 0.20 * len(wrapped)
-    plot_in = 0.6 + ROW_HEIGHT_IN * rows
-    total_in = plot_in + header_in
-    figure, axes = plt.subplots(figsize=(FIGURE_WIDTH_IN, total_in))
+    figure, axes = plt.subplots(figsize=(FIGURE_WIDTH_IN, 0.6 + ROW_HEIGHT_IN * rows))
     draw_prompt_rates(axes, rates)
-    figure.subplots_adjust(top=1 - header_in / total_in, bottom=0.10, left=0.30, right=0.93)
-    figure.text(
-        0.012,
-        1 - 0.30 / total_in,
+    figure.subplots_adjust(left=0.30, right=0.93)
+    frame_figure(
+        figure,
         "Rewording the request does nothing; saying who wrote the grader does",
-        ha="left",
-        va="top",
-        fontsize=13.5,
-        fontweight="bold",
-    )
-    figure.text(
-        0.012,
-        1 - 0.62 / total_in,
-        chr(10).join(wrapped),
-        ha="left",
-        va="top",
-        fontsize=9.5,
-        color=CAPTION_INK,
+        caption,
+        plot_in=0.6 + ROW_HEIGHT_IN * rows,
+        wrap=CAPTION_WRAP,
+        # The first band label sits at the top of the axes.
+        title_in=1.05,
     )
     return figure
 

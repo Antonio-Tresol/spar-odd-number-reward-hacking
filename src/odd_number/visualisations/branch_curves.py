@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import re
-import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -30,7 +29,12 @@ from matplotlib.ticker import PercentFormatter
 
 from odd_number.grades import wilson_interval
 from odd_number.traces import file_stem
-from odd_number.visualisations.figures import CAPTION_INK, CONTROL_INK, ODD_INK, apply_house_style
+from odd_number.visualisations.figures import (
+    CONTROL_INK,
+    ODD_INK,
+    apply_house_style,
+    frame_figure,
+)
 
 #: A branch point carrying fewer resamples than this is drawn hollow and left out
 #: of the line. Cells of one or two rows are leftovers from a coarser grid, and a
@@ -203,32 +207,5 @@ def branch_curve_figure(curves: list[BranchCurve], title: str, caption: str) -> 
     # their empty space in different places, and a legend over the data is worse
     # than one that moves between figures.
     axes.legend(frameon=False, loc="best", fontsize=9)
-    # The header is sized from the wrapped caption rather than fixed, because the
-    # caption explains the experiment and its length changes with the number of
-    # sweeps. A fixed reservation let a six-line caption run into the plot.
-    wrapped = textwrap.wrap(caption, CAPTION_WRAP) if caption else []
-    header_in = 0.52 + 0.20 * len(wrapped)
-    plot_in = 5.4
-    figure.set_size_inches(FIGURE_WIDTH_IN, plot_in + header_in)
-    total_in = plot_in + header_in
-    figure.subplots_adjust(top=1 - header_in / total_in, bottom=0.13, left=0.09, right=0.98)
-    figure.text(
-        0.035,
-        1 - 0.30 / total_in,
-        title,
-        ha="left",
-        va="top",
-        fontsize=13.5,
-        fontweight="bold",
-    )
-    if wrapped:
-        figure.text(
-            0.035,
-            1 - 0.62 / total_in,
-            chr(10).join(wrapped),
-            ha="left",
-            va="top",
-            fontsize=9.5,
-            color=CAPTION_INK,
-        )
+    frame_figure(figure, title, caption, plot_in=5.4, wrap=CAPTION_WRAP)
     return figure

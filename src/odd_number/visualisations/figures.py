@@ -119,6 +119,62 @@ def apply_house_style() -> None:
     plt.rcParams["axes.unicode_minus"] = False
 
 
+#: Room for the bold title above the plot, and for the axis label and ticks below
+#: it, before the caption starts. Inches, because savefig's tight bounding box
+#: crops a margin expressed as a fraction of the figure.
+TITLE_IN: float = 0.60
+AXIS_IN: float = 0.85
+CAPTION_LINE_IN: float = 0.20
+
+
+def frame_figure(
+    figure: Figure,
+    title: str,
+    caption: str,
+    plot_in: float,
+    wrap: int = 128,
+    title_in: float = TITLE_IN,
+) -> None:
+    """Title above the plot, caption below it, and the figure sized to hold both.
+
+    `title_in` is widened by callers whose plot draws something at the very top of
+    the axes, such as a band label, which would otherwise sit under the title.
+
+    The caption goes underneath because that is where a reader looks for one, and
+    because a caption above pushes the plot down the page and competes with the
+    title for the same glance. `gaming_rate_figure` already did this; this is the
+    same arrangement for the figures that did not.
+
+    Height is computed from the wrapped caption rather than fixed: a caption that
+    explains an experiment runs to six lines where one that defines an interval
+    runs to two, and a fixed reservation lets the long one collide with the plot.
+    """
+    wrapped = textwrap.wrap(caption, wrap) if caption else []
+    caption_in = 0.30 + CAPTION_LINE_IN * len(wrapped) if wrapped else 0.0
+    total_in = title_in + plot_in + AXIS_IN + caption_in
+    figure.set_size_inches(figure.get_size_inches()[0], total_in)
+    figure.subplots_adjust(top=1 - title_in / total_in, bottom=(AXIS_IN + caption_in) / total_in)
+    figure.text(
+        CAPTION_X,
+        1 - 0.26 / total_in,
+        title,
+        ha="left",
+        va="top",
+        fontsize=13.5,
+        fontweight="bold",
+    )
+    if wrapped:
+        figure.text(
+            CAPTION_X,
+            (caption_in - 0.06) / total_in,
+            chr(10).join(wrapped),
+            ha="left",
+            va="top",
+            fontsize=9.5,
+            color=CAPTION_INK,
+        )
+
+
 def is_base_cell(trace: Trace, treatment: str) -> bool:
     """Whether a trace belongs to the verbatim-wording cell of one arm."""
     return (
