@@ -278,7 +278,11 @@ def cmd_collect(args: argparse.Namespace) -> int:
         results_dir = settings.results_dir
 
     sampling = build_sampling(args)
-    out_path, todo = plan_collection(args, results_dir, model, sampling)
+    try:
+        out_path, todo = plan_collection(args, results_dir, model, sampling)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
     if not todo:
         return 0
 

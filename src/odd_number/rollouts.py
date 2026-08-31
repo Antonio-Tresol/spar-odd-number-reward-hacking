@@ -203,12 +203,24 @@ def load_completed_keys(out_path: Path) -> set[tuple[str, int]]:
 
     Errored rollouts and provider aborts are deliberately absent, so a re-run
     retries them.
+
+    A file written before `variant` was renamed `treatment` has no such key, and
+    reading it raised a bare KeyError from inside the resume path. Since the
+    whole point of resuming is that a half-finished run is recoverable, an
+    unreadable file has to say which file and what is wrong with it.
     """
-    return {
-        (record["treatment"], record["index"])
-        for record in read_rollouts(out_path)
-        if is_collected(record)
-    }
+    keys = set()
+    for record in read_rollouts(out_path):
+        if not is_collected(record):
+            continue
+        if "treatment" not in record:
+            raise ValueError(
+                f"{out_path} has a row with no `treatment` field, so it cannot be "
+                "resumed. It was probably written before that field was named "
+                "`treatment`; collect to a new path, or delete it if it is scratch."
+            )
+        keys.add((record["treatment"], record["index"]))
+    return keys
 
 
 def derive_seed(label: str, index: int) -> int:

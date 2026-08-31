@@ -16,6 +16,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from odd_number.environment import Treatment
 from odd_number.pinned_models import PINNED_MODELS_BY_SLUG
 from odd_number.rollouts import (
@@ -58,6 +60,24 @@ def test_done_keys_retries_a_provider_abort(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert load_completed_keys(path) == {("conflict-grader", 1)}
+
+
+def test_a_file_from_before_the_rename_says_so_instead_of_raising_keyerror(
+    tmp_path: Path,
+) -> None:
+    """Resume exists so a half-finished run is recoverable, so it has to explain itself.
+
+    Rows written before `variant` was renamed `treatment` raised a bare KeyError
+    from inside the resume path, naming neither the file nor the problem.
+    """
+    path = tmp_path / "r.jsonl"
+    path.write_text(
+        json.dumps({"variant": "conflict-grader", "index": 0, "error": None}) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="no `treatment` field"):
+        load_completed_keys(path)
 
 
 def test_done_keys_tolerates_a_torn_final_line(tmp_path: Path) -> None:
