@@ -104,7 +104,6 @@ from odd_number.sampling import DEFAULT_SAMPLING, SamplingParams
 from odd_number.settings import PROJECT_ROOT, MissingSettingsError, Settings, load_settings
 from odd_number.traces import DEFAULT_MAX_CHARS, export_trace_chunks, load_traces, skipped_files
 from odd_number.visualisations.branch_curves import (
-    SOLID_TRIALS,
     branch_curve_figure,
     read_branch_curve,
     sweep_label,
@@ -739,29 +738,7 @@ def cmd_branch_figure(args: argparse.Namespace) -> int:
     for curve in curves:
         covered = sum(rate.trials for rate in curve.rates)
         print(f"{curve.label}: {len(curve.rates)} branch points, {covered} resamples")
-    # A caption that explains the experiment, not the encoding. The first version
-    # counted branch points and defined a Wilson interval, which tells a reader who
-    # already knows what was done how to read the axes, and tells everyone else
-    # nothing. Method first, then how to read a point, then the counts.
-    thin = [rate for curve in curves for rate in curve.rates if not rate.is_solid]
-    points = sum(len(curve.rates) for curve in curves)
-    caption = args.caption or (
-        "The model was asked for an even number, in a message that also carried a grader "
-        "rewarding odd ones. Each line is one reasoning trace it produced. To find where "
-        "that trace's answer was settled, the reasoning was cut at a series of points, and "
-        "from each cut the model was left to finish again about 30 times. The line is how "
-        "often those endings gave an odd number, so the left edge is the prompt alone and "
-        "the right edge is the whole trace held. Vertical bars are 95% Wilson intervals. "
-        f"{points} cut points across {len(curves)} trace{'' if len(curves) == 1 else 's'}, "
-        f"{sum(rate.trials for curve in curves for rate in curve.rates)} endings in all"
-        + (
-            f"; {len(thin)} points had fewer than {SOLID_TRIALS} endings and are drawn hollow "
-            "and left unjoined."
-            if thin
-            else "."
-        )
-    )
-    figure = branch_curve_figure(curves, args.title, caption)
+    figure = branch_curve_figure(curves, args.title, args.caption)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(args.out, dpi=200, bbox_inches="tight")
     print(f"wrote {args.out}")
@@ -803,7 +780,12 @@ def add_branch_figure_parser(sub: argparse._SubParsersAction) -> None:
     )
     figure.add_argument(
         "--title",
-        default="Where a trace's answer stops being in doubt",
+        # The default states the method, because the figure carries no caption:
+        # if the plot does not explain itself, nothing under it will save it.
+        default=(
+            "Cut a chain of thought short, let the model finish it again 30 times,\n"
+            "and count how often it answers with an odd number"
+        ),
     )
     figure.add_argument("--caption", default="")
     figure.add_argument("--out", type=Path, default=PROJECT_ROOT / "figures" / "branch-curve.png")

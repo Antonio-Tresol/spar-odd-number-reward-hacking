@@ -149,6 +149,9 @@ def frame_figure(
     explains an experiment runs to six lines where one that defines an interval
     runs to two, and a fixed reservation lets the long one collide with the plot.
     """
+    # A title that runs to two lines needs the room for the second one, or it
+    # sits on the top gridline.
+    title_in += 0.30 * title.count(chr(10))
     wrapped = textwrap.wrap(caption, wrap) if caption else []
     caption_in = 0.30 + CAPTION_LINE_IN * len(wrapped) if wrapped else 0.0
     total_in = title_in + plot_in + AXIS_IN + caption_in

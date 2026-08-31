@@ -193,14 +193,9 @@ def confusion_counts_figure(counts: list[ConfusionCount], total: int, odd_total:
     figure.subplots_adjust(left=0.20, right=0.97)
     frame_figure(
         figure,
-        "What qwen3.8-27b is unsure about under the conflicting grader",
-        f"Conflict arm only, {total} labelled traces of which {odd_total} answered odd. One agent "
-        "read each trace and answered the six questions independently, quoting the passage that "
-        "decided each yes; a label whose quote is not in the trace is not counted. A trace can "
-        "raise any number of the six, so the bars do not sum to the corpus. Each bar is split by "
-        "the answer the trace went on to give. The dashed line on the right is the share of the "
-        "whole corpus that answered odd, so a question that told you nothing about the outcome "
-        "would sit on it.",
+        "Six things the model weighs while choosing its answer, and how often "
+        "the traces that raised each one ended up answering odd",
+        "",
         plot_in=ROW_HEIGHT_IN * len(counts),
         title_in=0.95,
     )
