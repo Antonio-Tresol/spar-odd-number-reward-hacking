@@ -40,6 +40,7 @@ def test_every_subcommand_is_reachable() -> None:
         "branch",
         "prompt-figure",
         "confusion-figure",
+        "length-figure",
         "branch-figure",
         "gaming-figure",
         "export-traces",

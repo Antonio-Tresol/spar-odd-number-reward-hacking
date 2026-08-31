@@ -116,6 +116,7 @@ from odd_number.visualisations.figures import (
     gaming_rate_figure,
     gaming_rates,
 )
+from odd_number.visualisations.length_confound import build_length_confound_figure
 from odd_number.visualisations.prompt_rates import BANDS, build_prompt_rates_figure
 
 # Errors in a row before giving up. A bad key or model name fails identically
@@ -822,6 +823,23 @@ def add_branch_figure_parser(sub: argparse._SubParsersAction) -> None:
     )
     confusions.set_defaults(func=cmd_confusion_figure)
 
+    lengths = sub.add_parser(
+        "length-figure",
+        help="plot deliberation length against the odd rate, per prompt",
+        description=(
+            "The prompts that take the odd answer to zero also take the reasoning "
+            "to a quarter of its length, and short traces here almost never answer "
+            "odd. Both readings predict the same rates, so this figure states the "
+            "ambiguity rather than resolving it; `branch` is what resolves it."
+        ),
+    )
+    lengths.add_argument("--model", default="qwen/qwen3.8-27b")
+    lengths.add_argument("--results-dir", type=Path, default=PROJECT_ROOT / "results")
+    lengths.add_argument(
+        "--out", type=Path, default=PROJECT_ROOT / "figures" / "qwen38-length-confound.png"
+    )
+    lengths.set_defaults(func=cmd_length_figure)
+
 
 def cmd_prompt_figure(args: argparse.Namespace) -> int:
     """Draw one model's odd-answer rate for every prompt it was sent."""
@@ -841,6 +859,17 @@ def cmd_confusion_figure(args: argparse.Namespace) -> int:
     traces = [t for t in load_traces(args.results_dir) if t.model == args.model]
     try:
         out = build_confusion_figure(traces, args.labels, args.out)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    print(f"{out} ({out.stat().st_size / 1e3:.0f} KB)")
+    return 0
+
+
+def cmd_length_figure(args: argparse.Namespace) -> int:
+    """Draw reasoning length and odd rate side by side, per prompt version."""
+    try:
+        out = build_length_confound_figure(args.results_dir, args.model, args.out)
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return 2
