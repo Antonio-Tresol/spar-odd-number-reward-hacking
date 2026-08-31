@@ -48,12 +48,17 @@ onward 240 times in 240 across eight branch points. The whole shift happens
 across sentences [11] to [42], about a fifth of the trace and a fifth of its
 characters.
 
-The prefix narrows the answer as well as the parity. Counting distinct numbers
-returned at each branch point, the model gives 10 different answers from the
-prompt alone and 1 from 114 sentences on, falling monotonically in between: 10,
-11, 8, 7, 6, 4, 4, 3, 2, 1. The number it converges on is 1, which is what the
-source trace answered. Across the whole sweep 304 of 350 odd answers are 1, and
-the even answers concentrate on 42 and 2. So the resampling reproduces the
+The prefix narrows the answer as well as the parity, though not monotonically.
+Counting distinct numbers returned at each well-sampled branch point, from
+position zero through the whole trace:
+
+    10  9 11 11 10  8 11  8  8  6  9  8  7  8  7  9  6  6  6  4  4  3  2  1  1  2  1  1
+
+The count fluctuates between 6 and 11 across the transition window, falls to 4
+by 43 sentences, reaches 1 at 114, and returns to 2 at 159 where one
+continuation answered 7. The number it converges on is 1, which is what the
+source trace answered: 422 of the sweep's 540 odd answers are 1, and the even
+answers concentrate on 42 (157) and 2 (57). So the resampling reproduces the
 trace's own output rather than its parity alone.
 
 ## Branch position zero reproduces the chat path
