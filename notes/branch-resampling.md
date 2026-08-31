@@ -312,13 +312,15 @@ Both stories fail, each for a reason the other supplies.
 **Deliberation still commits the model under the affirming prompt.** An empty
 prefix answers odd 0 times in 30; a prefix of 2,131 characters answers odd 8
 times in 28. Handing the model its own reasoning moves it toward the odd answer
-even under the prompt that took gaming to 0/40, so the zero in `Q1.H7.E6.C2` is
-not only the absence of deliberation.
+even under the prompt that took gaming to 0/40. Deliberation the prefix supplies
+still counts under that prompt, so `Q1.H7.E6.C2`'s zero rests on more than its
+absence.
 
 **The affirming sentence undoes most of what deliberation builds.** The same
 prefix reaches 97% under the plain prompt and 29% under the affirming one, well
-after the model has computed the reward and identified the genre. So the zero is
-not only conflict resolution at the prompt level either.
+after the model has computed the reward and identified the genre. The sentence
+keeps working late, so prompt-level conflict resolution accounts for part of the
+zero and leaves the rest.
 
 The two together: those 2,131 characters are worth +74 points under the plain
 prompt and +29 under the affirming one. The sentence leaves the curve's shape
