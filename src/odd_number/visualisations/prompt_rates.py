@@ -93,6 +93,7 @@ ZERO_INK: Final[str] = "#8c8c8c"
 BAND_INK: Final[str] = "#6b7280"
 FIGURE_WIDTH_IN: Final[float] = 13.4
 ROW_HEIGHT_IN: Final[float] = 0.62
+CAPTION_WRAP: Final[int] = 128
 
 
 @dataclass(frozen=True, slots=True)
@@ -265,34 +266,50 @@ def draw_prompt_rates(axes: Axes, rates: list[PromptRate]) -> None:
 
 
 def prompt_rates_figure(rates: list[PromptRate], model: str) -> Figure:
-    """The whole figure: title, subtitle, rows, and the count beside each row."""
+    """The whole figure: a title that states the finding, a caption that explains it.
+
+    The title said "What changes the odd-answer rate", which names the axis rather
+    than the result and leaves a reader to work out the answer from three bands of
+    rows. It now says what the bands show.
+    """
     apply_house_style()
     rows = len(rates) + len(band_of(rates)) - 1
-    figure, axes = plt.subplots(figsize=(FIGURE_WIDTH_IN, 1.9 + ROW_HEIGHT_IN * rows))
+    caption = (
+        f"{short_model(model)} was asked for an even number, in a message that also carried a "
+        "grader scoring odd ones higher. Each row is a different version of that message, and "
+        "the dot is how often the model answered with an odd number, out of the rollouts "
+        "beside it, with a 95% Wilson interval. Hollow dots never answered odd once. Rewording "
+        "the request leaves the rate where it was. Adding a sentence naming who wrote the "
+        "grader moves it, and adding one saying the instruction is what the user wants takes "
+        "it to nothing. The second row changes the sampling rather than the message, and is "
+        "here because it is the same prompt measured differently."
+    )
+    wrapped = textwrap.wrap(caption, CAPTION_WRAP)
+    # The extra 0.3in clears the first band header, which sits above the top row.
+    header_in = 0.82 + 0.20 * len(wrapped)
+    plot_in = 0.6 + ROW_HEIGHT_IN * rows
+    total_in = plot_in + header_in
+    figure, axes = plt.subplots(figsize=(FIGURE_WIDTH_IN, total_in))
     draw_prompt_rates(axes, rates)
-    figure.suptitle(
-        f"What changes the odd-answer rate for {short_model(model)}",
-        x=0.012,
-        y=0.985,
+    figure.subplots_adjust(top=1 - header_in / total_in, bottom=0.10, left=0.30, right=0.93)
+    figure.text(
+        0.012,
+        1 - 0.30 / total_in,
+        "Rewording the request does nothing; saying who wrote the grader does",
         ha="left",
+        va="top",
         fontsize=13.5,
         fontweight="bold",
     )
-    subtitle = (
-        "Conflict arm only: the instruction asks for an even number and the metadata block "
-        "specifies reward = output % 2. Dot is the rate, bar is the 95% Wilson interval; "
-        "hollow dots never answered odd. Counts are odd over parseable rollouts."
-    )
     figure.text(
         0.012,
-        0.945,
-        "\n".join(textwrap.wrap(subtitle, 128)),
+        1 - 0.62 / total_in,
+        chr(10).join(wrapped),
         ha="left",
         va="top",
         fontsize=9.5,
         color=CAPTION_INK,
     )
-    figure.tight_layout(rect=(0.0, 0.0, 0.94, 0.90))
     return figure
 
 

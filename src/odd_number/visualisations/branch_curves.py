@@ -37,6 +37,11 @@ from odd_number.visualisations.figures import CAPTION_INK, CONTROL_INK, ODD_INK,
 #: line drawn through them reads as a measurement rather than as a stray.
 SOLID_TRIALS: int = 10
 
+#: Wide enough that a caption explaining the experiment runs to a few lines
+#: rather than a dozen, and the figure stays legible at a page width.
+FIGURE_WIDTH_IN: float = 11.0
+CAPTION_WRAP: int = 128
+
 #: Inks for the second and third curves. The first takes `ODD_INK` from the
 #: shared palette, which is the colour the gaming-rate figure gives an odd
 #: answer, so a plain-prompt odd curve reads the same way on both figures.
@@ -183,7 +188,7 @@ def branch_curve_figure(curves: list[BranchCurve], title: str, caption: str) -> 
     inks = (ODD_INK, SECOND_INK, THIRD_INK)
     if len(curves) > len(inks):
         raise ValueError(f"{len(curves)} curves, {len(inks)} inks defined")
-    figure, axes = plt.subplots(figsize=(9.0, 5.4))
+    figure, axes = plt.subplots(figsize=(FIGURE_WIDTH_IN, 5.4))
     for curve, ink in zip(curves, inks, strict=False):
         draw_curve(axes, curve, ink)
     axes.set_ylim(-Y_PAD, 1 + Y_PAD)
@@ -198,26 +203,29 @@ def branch_curve_figure(curves: list[BranchCurve], title: str, caption: str) -> 
     # their empty space in different places, and a legend over the data is worse
     # than one that moves between figures.
     axes.legend(frameon=False, loc="best", fontsize=9)
-    # The same header the other figures use: a bold line naming the finding, a
-    # grey line saying how it was measured. Reserved in inches, because savefig's
-    # tight bbox crops a margin expressed as a fraction.
-    header_in = 1.25 if caption else 0.75
-    figure.set_size_inches(9.0, 5.4 + header_in)
-    figure.subplots_adjust(top=1 - header_in / (5.4 + header_in), bottom=0.13)
+    # The header is sized from the wrapped caption rather than fixed, because the
+    # caption explains the experiment and its length changes with the number of
+    # sweeps. A fixed reservation let a six-line caption run into the plot.
+    wrapped = textwrap.wrap(caption, CAPTION_WRAP) if caption else []
+    header_in = 0.52 + 0.20 * len(wrapped)
+    plot_in = 5.4
+    figure.set_size_inches(FIGURE_WIDTH_IN, plot_in + header_in)
+    total_in = plot_in + header_in
+    figure.subplots_adjust(top=1 - header_in / total_in, bottom=0.13, left=0.09, right=0.98)
     figure.text(
         0.035,
-        1 - 0.30 / (5.4 + header_in),
+        1 - 0.30 / total_in,
         title,
         ha="left",
         va="top",
         fontsize=13.5,
         fontweight="bold",
     )
-    if caption:
+    if wrapped:
         figure.text(
             0.035,
-            1 - 0.62 / (5.4 + header_in),
-            chr(10).join(textwrap.wrap(caption, 108)),
+            1 - 0.62 / total_in,
+            chr(10).join(wrapped),
             ha="left",
             va="top",
             fontsize=9.5,

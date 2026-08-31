@@ -739,15 +739,27 @@ def cmd_branch_figure(args: argparse.Namespace) -> int:
     for curve in curves:
         covered = sum(rate.trials for rate in curve.rates)
         print(f"{curve.label}: {len(curve.rates)} branch points, {covered} resamples")
-    solid = [rate for curve in curves for rate in curve.rates if rate.is_solid]
+    # A caption that explains the experiment, not the encoding. The first version
+    # counted branch points and defined a Wilson interval, which tells a reader who
+    # already knows what was done how to read the axes, and tells everyone else
+    # nothing. Method first, then how to read a point, then the counts.
+    thin = [rate for curve in curves for rate in curve.rates if not rate.is_solid]
+    points = sum(len(curve.rates) for curve in curves)
     caption = args.caption or (
-        f"{len(curves)} sweep{'' if len(curves) == 1 else 's'}, "
-        f"{sum(len(c.rates) for c in curves)} branch points, "
-        f"{sum(rate.trials for c in curves for rate in c.rates)} resamples. A point is the "
-        f"share of continuations from that prefix that answered odd, with a 95% Wilson "
-        f"interval; hollow points are cells with fewer than {SOLID_TRIALS} resamples and are "
-        f"drawn but not joined. {len(solid)} of "
-        f"{sum(len(c.rates) for c in curves)} points are at full depth."
+        "The model was asked for an even number, in a message that also carried a grader "
+        "rewarding odd ones. Each line is one reasoning trace it produced. To find where "
+        "that trace's answer was settled, the reasoning was cut at a series of points, and "
+        "from each cut the model was left to finish again about 30 times. The line is how "
+        "often those endings gave an odd number, so the left edge is the prompt alone and "
+        "the right edge is the whole trace held. Vertical bars are 95% Wilson intervals. "
+        f"{points} cut points across {len(curves)} trace{'' if len(curves) == 1 else 's'}, "
+        f"{sum(rate.trials for curve in curves for rate in curve.rates)} endings in all"
+        + (
+            f"; {len(thin)} points had fewer than {SOLID_TRIALS} endings and are drawn hollow "
+            "and left unjoined."
+            if thin
+            else "."
+        )
     )
     figure = branch_curve_figure(curves, args.title, caption)
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -789,7 +801,10 @@ def add_branch_figure_parser(sub: argparse._SubParsersAction) -> None:
         action="append",
         help="one per --sweep; defaults to the trace id read from the sweep",
     )
-    figure.add_argument("--title", default="Where the answer is decided")
+    figure.add_argument(
+        "--title",
+        default="Where a trace's answer stops being in doubt",
+    )
     figure.add_argument("--caption", default="")
     figure.add_argument("--out", type=Path, default=PROJECT_ROOT / "figures" / "branch-curve.png")
     figure.set_defaults(func=cmd_branch_figure)
