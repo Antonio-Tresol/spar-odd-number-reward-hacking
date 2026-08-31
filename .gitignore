@@ -18,3 +18,8 @@ odd-number-notes*.json
 # filename in the repo root. Three landed there on 2026-08-30, one of them a
 # batch's label output. Ignored so the next one cannot be committed by accident.
 C[:\uf03a]Users*
+
+# The mentor's take-home text. Removed when this repo went public: a take-home
+# prompt gets reused across candidates and should not sit beside a worked
+# solution. Kept locally, path in CLAUDE.local.md.
+notes/take-home/Model Forensics SPAR Take-home.md

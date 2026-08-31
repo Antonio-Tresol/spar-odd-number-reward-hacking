@@ -2,24 +2,18 @@
 
 Merged into this repo on 2026-08-24 from the former `spar-model-forensics-workspace`
 repo, which held prep material separately and has since been retired. Everything
-it contained is here.
+it contained is here except the mentor's assignment text, for the reason below.
 
 ## The assignment
 
-[Model Forensics SPAR Take-home.md](Model%20Forensics%20SPAR%20Take-home.md) —
-exported from the mentor's Google Doc.
-
-Provenance: text is unmodified. The only difference from the original export is
-line endings — the export used 25 CRLF breaks, and this repo's
-`core.autocrlf=true` normalized them to LF on commit (422,100 → 422,075 bytes).
-No characters of content were added, removed, or reordered. A pristine copy of
-the original export is archived at
-`C:\Users\anton\spar-workspace-archive-2026-08-24\files-copy\`.
-
 Spend up to 5 hours investigating **one** of three single-turn settings. Any
 models, tools, or coding agents are allowed. Replication does not count against
-the time limit. Submit as a Google Doc with an executive summary at the top,
-emailed with the subject line `Model Forensics SPAR take-home <name>`.
+the time limit.
+
+The mentor's own text is not committed. A take-home prompt gets reused across
+candidates, and this repository is public with a worked solution in it. Where
+the local copy lives is recorded in `CLAUDE.local.md`, which is gitignored, as
+machine-specific pointers are throughout this project.
 
 ## Setting 1 — Odd Number reward hacking (chosen)
 
