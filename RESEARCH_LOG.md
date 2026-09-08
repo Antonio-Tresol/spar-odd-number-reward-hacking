@@ -26,6 +26,13 @@ Entry format:
 * What I will do next:
 ```
 
+### 2026-09-08
+
+* What I did: Rewrote the history so the mentor's SPAR take-home prompt, with its embedded screenshot, and the paraphrase of it under notes/take-home/ are gone from every commit, not only from the tree. git filter-repo removed the two paths and the result was force-pushed; the MATS repository that continues this investigation had the same rewrite the same day. Every commit hash changed, so the record's two pointers to the retired write-up draft were repointed by filter-repo's own map (aa0843c is now 4cbac3d), and the log entry that named notes/take-home/ carries a bracketed note saying what happened to it. The paraphrase survives in the MATS repository's gitignored archive. No experiment ran and no tree node changed.
+* What I expected vs what happened: The take-home text had already been taken out of the tree on 2026-08-30 but stayed reachable in history on a public repository, which is what this closes. filter-repo reports zero copies of either path in any ref. GitHub keeps unreachable commits fetchable by hash until its own garbage collection, so the old hashes may still resolve there for a while.
+* What this changes about my thinking: Nothing about the findings. Material shared in confidence is kept out of the tree from the first commit, because removing it later means rewriting every hash the record points at.
+* What I will do next: Refresh any clone with a fetch and reset, since main was force-pushed.
+
 ### 2026-08-29
 
 * What I did: Pulled 30 commits and ran the validate-claims gate that the
@@ -34,7 +41,7 @@ Entry format:
   reproducing `grade --judge` offline by reading the cached judgement sidecars,
   so no API key was needed. Antonio asked for the draft to be removed so that he
   can write the deliverable himself, so `notes/writeup.md` is deleted; it stays
-  in git history at `aa0843c`. The corrections the gate found were applied to
+  in git history at `4cbac3d`. The corrections the gate found were applied to
   TREE.md and `notes/provenance-descriptions.md`, which are the files that
   outlive the draft. Also committed the residue of a throttled background pass at
   the paraphrase gaps: three new successful rollouts in p1, all even, and 35 rows
@@ -461,7 +468,7 @@ Entry format:
 
 ### 2026-08-24
 
-* What I did: Scaffolded the project from the research-harness — skills, research tree, this log, and the mechanical validator — and wrote Q1 into TREE.md. Merged the separate take-home workspace repo into this one under `notes/take-home/`, retiring the second repo. Began the literature pass with Singh et al., *Model Forensics* (arXiv:2606.26071) — the mentor's own paper, which defines the protocol this take-home asks us to apply — took verbatim notes in `notes/model-forensics-paper-notes.md`, and derived a `model-forensics` skill from those notes. Fixed two Windows path-separator bugs in the vendored lanorme plugins that were silently disabling PROV-003 and STALE-002.
+* What I did: Scaffolded the project from the research-harness — skills, research tree, this log, and the mechanical validator — and wrote Q1 into TREE.md. Merged the separate take-home workspace repo into this one under `notes/take-home/` (removed from the tree and its history on 2026-09-08; a copy lives in the MATS repository's gitignored archive), retiring the second repo. Began the literature pass with Singh et al., *Model Forensics* (arXiv:2606.26071) — the mentor's own paper, which defines the protocol this take-home asks us to apply — took verbatim notes in `notes/model-forensics-paper-notes.md`, and derived a `model-forensics` skill from those notes. Fixed two Windows path-separator bugs in the vendored lanorme plugins that were silently disabling PROV-003 and STALE-002.
 * What I expected vs what happened: I expected the paper to be background reading. It is closer to a rubric — it names the standard of evidence, the seven benign explanations that must be ruled out, and the failure modes (negative results are not symmetric with positive ones; counterfactual effect sizes are confounded three ways). Separately, I expected the harness checks to be sound; two of them were passing by scanning zero files on Windows, which is the failure mode those checks exist to prevent.
 * What this changes about my thinking: Q1 should not be framed as "is this reward hacking?" but as "which of the candidate explanations survives?" — benign motif 4 (an RLVR-trained model treating an ambiguous environment feature as task-relevant) is a serious competitor to reward hacking for the Odd Number setting, and motif 1 (task misspecification) is a second. Any claim needs a control setting and a positive control before it means anything.
 * What I will do next: Run the baseline A/B at n>=40 per arm on a model that returns readable reasoning, then screen the open-weights slate (Q1.H7.E2) for gaming rate plus `reasoning.text`, to pick what is worth self-hosting for activations.
